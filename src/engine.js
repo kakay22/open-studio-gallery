@@ -1377,7 +1377,8 @@ export default function startGallery() {
 
 
     // ---- network (own Node server)
-    const API = import.meta.env.VITE_API || '';
+    const API = (import.meta.env.VITE_API || '').replace(/\/$/, '');
+    const assetUrl = url => url?.startsWith('http') ? url : `${API}${url}`;
     const wsUrl = import.meta.env.VITE_WS || ((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws');
     let ws = null, wsId = null, lastState = {}, peersCb = null, snapCb = null; const handlers = { chat: [], react: [], rtc: [] };
     const wsend = o => { if (ws && ws.readyState === 1) ws.send(JSON.stringify(o)) };
@@ -1387,7 +1388,28 @@ export default function startGallery() {
       on(t, cb) { handlers[t].push(cb) },
       emit(t, data) { wsend({ t, data }); return Promise.resolve() }
     };
-    async function loadPaintings() { try { const r = await fetch(API + '/api/paintings'); const list = await r.json(); if (snapCb) snapCb({ docs: list.map(p => ({ id: p.id, data: () => p })) }) } catch (e) { console.error(e) } }
+    async function loadPaintings() {
+      try {
+        const r = await fetch(API + '/api/paintings');
+        if (!r.ok) throw new Error(`Failed to load paintings (${r.status})`);
+
+        const list = await r.json();
+
+        if (snapCb) {
+          snapCb({
+            docs: list.map(p => {
+              const item = { ...p, url: assetUrl(p.url) };
+              return {
+                id: item.id,
+                data: () => item
+              };
+            })
+          });
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
     const dbS = {
       collection: () => ({
         onSnapshot(cb) { snapCb = cb; loadPaintings() }, doc: id => ({
@@ -1396,7 +1418,27 @@ export default function startGallery() {
         })
       })
     };
-    const assetsS = { upload: async blob => { const r = await fetch(API + '/api/assets', { method: 'POST', headers: { 'Content-Type': 'image/jpeg' }, body: blob }); if (!r.ok) throw new Error('Upload failed (' + r.status + ')'); return r.json() }, delete: async () => { } };
+    const assetsS = {
+      upload: async blob => {
+        const r = await fetch(API + '/api/assets', {
+          method: 'POST',
+          headers: { 'Content-Type': 'image/jpeg' },
+          body: blob
+        });
+
+        if (!r.ok) {
+          throw new Error('Upload failed (' + r.status + ')');
+        }
+
+        const data = await r.json();
+
+        return {
+          ...data,
+          url: assetUrl(data.url)
+        };
+      },
+      delete: async () => { }
+    };
     function connect() {
       ws = new WebSocket(wsUrl);
       ws.onopen = () => { if (Object.keys(lastState).length) wsend({ t: 'state', s: lastState }) };

@@ -1,25 +1,31 @@
+
 # Node
 node_modules/
 dist/
 .vite/
 
-# Python
-__pycache__/
-*.py[cod]
+# Python environments
 venv/
 .venv/
 env/
 
-# Environment variables and secrets
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Secrets
 .env
 .env.*
 !.env.example
 
-# Local databases
+# Database and local data
 *.sqlite3
-db.sqlite3
+data/
 
-# Editor and OS
+# Generated static files
+staticfiles/
+
+# Editors and operating system
 .vscode/
 .idea/
 .DS_Store
