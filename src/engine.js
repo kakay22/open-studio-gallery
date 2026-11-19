@@ -27,7 +27,7 @@ export default function startGallery() {
     $('look').onclick = () => { document.exitPointerLock?.(); $('start').style.display = 'flex'; $('go').textContent = 'Save look'; const p = document.querySelector('#start p'); if (p) p.style.display = 'none' };
 
     // ---- scene
-    const renderer = new THREE.WebGLRenderer({ antialias: !LOW || devicePixelRatio < 2, powerPreference: 'high-performance' }); renderer.setPixelRatio(Math.min(devicePixelRatio, LOW ? 1.75 : 2)); renderer.outputEncoding = THREE.sRGBEncoding;
+    const renderer = new THREE.WebGLRenderer({ antialias: !LOW || devicePixelRatio < 2, powerPreference: 'high-performance' }); renderer.setPixelRatio(Math.min(devicePixelRatio, LOW ? 1.75 : 2)); renderer.outputEncoding = THREE.sRGBEncoding; renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     document.body.prepend(renderer.domElement);
     const scene = new THREE.Scene(); scene.background = new THREE.Color(0x2a2826); scene.fog = new THREE.Fog(0x2a2826, 22, 60);
     const cam = new THREE.PerspectiveCamera(70, 1, .1, LOW ? 45 : 80);
@@ -35,6 +35,12 @@ export default function startGallery() {
     addEventListener('resize', resize); resize();
     addEventListener('orientationchange', () => setTimeout(resize, 200));
     scene.add(new THREE.HemisphereLight(0xfff1dc, 0x3a342d, LOW ? .6 : .38));
+    const sun = new THREE.DirectionalLight(0xfff1dc, LOW ? .55 : .7);
+    sun.position.set(4, 22, 6); sun.castShadow = true;
+    sun.shadow.mapSize.set(LOW ? 1024 : 2048, LOW ? 1024 : 2048);
+    Object.assign(sun.shadow.camera, { left: -20, right: 20, top: 13, bottom: -13, near: 1, far: 40 });
+    sun.shadow.bias = -.0004; sun.shadow.normalBias = .04;
+    scene.add(sun);
     // floor
     const fc = document.createElement('canvas'); fc.width = fc.height = 1024; const fx = fc.getContext('2d');
     for (let i = 0; i < 8; i++) { fx.fillStyle = `hsl(32,${28 + i % 3 * 4}%,${52 + i % 4 * 3}%)`; fx.fillRect(0, i * 128, 1024, 128); fx.fillStyle = '#0003'; fx.fillRect(0, i * 128, 1024, 3) }
@@ -71,7 +77,7 @@ export default function startGallery() {
     }
 
     wall(W, 0, -D / 2, 0, .5, true); wall(W, 0, D / 2, Math.PI, .5, true);
-    wall(D, -W / 2, 0, Math.PI / 2, .5, true); wall(D, W / 2, 0, -Math.PI / 2, .5, true);
+    wall(D + 1, -W / 2, 0, Math.PI / 2, .5, true); wall(D + 1, W / 2, 0, -Math.PI / 2, .5, true);
 
     // ---- museum interior architecture
 
@@ -104,15 +110,9 @@ export default function startGallery() {
     }
 
     // Left and right exhibition wings.
-    partitionX(-7, -9.5, 9.5, 0, 4.2);
-    partitionX(7, -9.5, 9.5, 0, 4.2);
+    partitionX(-7, -D / 2, D / 2, 0, 4.2);
+    partitionX(7, -D / 2, D / 2, 0, 4.2);
 
-    // Small partitions create separate exhibition alcoves.
-    partitionZ(-4.5, -17, -7, -12, 3.5);
-    partitionZ(4.5, 7, 17, 12, 3.5);
-
-    // Entrance lobby separation.
-    partitionZ(7.5, -7, 7, 0, 4.5);
 
     function flare(x1, z1, x2, z2) {
       const dx = x2 - x1, dz = z2 - z1;
@@ -120,7 +120,7 @@ export default function startGallery() {
     }
     flare(-7, 2.1, -5.6, 3.5); flare(-7, -2.1, -5.6, -3.5);
     flare(7, 2.1, 5.6, 3.5); flare(7, -2.1, 5.6, -3.5);
-    flare(-2.25, 7.5, -3.65, 6.1); flare(2.25, 7.5, 3.65, 6.1);
+
 
     // ---- architectural columns
     const columnMat = new THREE.MeshStandardMaterial({
@@ -210,7 +210,6 @@ export default function startGallery() {
     // Openings through the two main partitions.
     arch(-7, 0, 4.2, Math.PI / 2);
     arch(7, 0, 4.2, Math.PI / 2);
-    arch(0, 7.5, 4.5, 0);
 
     const ceil = new THREE.Mesh(new THREE.PlaneGeometry(W, D), new THREE.MeshStandardMaterial({ color: 0x9a948a })); ceil.rotation.x = Math.PI / 2; ceil.position.y = H; scene.add(ceil);
     // ---- varied suspended ceiling sections
@@ -510,8 +509,9 @@ export default function startGallery() {
     const deskMat = new THREE.MeshLambertMaterial({ color: 0x57483a });
     const deskTopMat = new THREE.MeshLambertMaterial({ color: 0xe8e3da });
     const darkMat = new THREE.MeshLambertMaterial({ color: 0x1d1a17 });
+    const RX = -4.5, RZ = 7.2;
     {
-      const g = new THREE.Group(); g.position.set(-4.3, 0, 8.25);
+      const g = new THREE.Group(); g.position.set(RX, 0, RZ);
       const body = new THREE.Mesh(new THREE.BoxGeometry(2.6, 1.05, .8), deskMat); body.position.y = .525;
       const top = new THREE.Mesh(new THREE.BoxGeometry(2.8, .07, .95), deskTopMat); top.position.y = 1.085;
       const trim = new THREE.Mesh(new THREE.BoxGeometry(2.6, .06, .02), goldMat); trim.position.set(0, .9, .41);
@@ -521,7 +521,7 @@ export default function startGallery() {
       const stand = new THREE.Mesh(new THREE.BoxGeometry(.06, .2, .06), darkMat); stand.position.set(-.7, 1.2, -.1);
       g.add(body, top, trim, lbl, bell, mon, stand); scene.add(g);
     }
-    solidWalls.push({ x1: -5.3, z1: 8.25, x2: -3.3, z2: 8.25, th: .42 });
+    solidWalls.push({ x1: RX - 1, z1: RZ, x2: RX + 1, z2: RZ, th: .55 });
 
     // ---- glass display cases in the main hall
     const glassMat = new THREE.MeshLambertMaterial({ color: 0xcfe8ff, transparent: true, opacity: .16, depthWrite: false });
@@ -539,27 +539,84 @@ export default function startGallery() {
     glassCase(-3.6, -6.2, 'knot'); glassCase(3.6, -6.2, 'dode');
 
     // ---- elevator (right side of the lobby, against the partition)
-    const EVX = 4.6;
+    const EVX = 4, EVZ = 7;
+    const ev = new THREE.Group(); ev.position.set(EVX, 0, EVZ); scene.add(ev);
     const evShell = new THREE.MeshLambertMaterial({ color: 0x4a4038 }), evDoorMat = new THREE.MeshLambertMaterial({ color: 0xb9b2a4 });
     const evBack = new THREE.MeshBasicMaterial({ color: 0xb39a6b }), evSide = new THREE.MeshBasicMaterial({ color: 0x8c7650 });
     const evLight = new THREE.MeshBasicMaterial({ color: 0xfff1d6 }), evFloor = new THREE.MeshBasicMaterial({ color: 0x3b3128 });
-    const evBox = (w, h, d, x, y, z, m) => { const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); o.position.set(x, y, z); scene.add(o) };
-    const evPlane = (w, h, x, y, z, rx, ry, m) => { const o = new THREE.Mesh(new THREE.PlaneGeometry(w, h), m); o.position.set(x, y, z); o.rotation.set(rx, ry, 0); scene.add(o) };
-    evBox(.2, 3.5, 1.6, 3.6, 1.75, 8.55, evShell); evBox(.2, 3.5, 1.6, 5.6, 1.75, 8.55, evShell);  // side walls
-    evBox(2.2, .4, 1.6, EVX, 3.3, 8.55, evShell);                                                    // roof
-    evBox(1.8, .6, .2, EVX, 2.8, 9.25, evShell);                                                     // header above doors
-    evBox(1.9, .06, .12, EVX, 2.5, 9.34, goldMat);                                                   // gold trim
-    evPlane(1.8, 2.6, EVX, 1.3, 7.77, 0, 0, evBack);                                                 // inside back
-    evPlane(1.6, 2.6, 3.71, 1.3, 8.55, 0, Math.PI / 2, evSide); evPlane(1.6, 2.6, 5.49, 1.3, 8.55, 0, -Math.PI / 2, evSide);
-    evPlane(1.2, 1.0, EVX, 3.08, 8.55, Math.PI / 2, 0, evLight);                                     // ceiling light
-    evPlane(1.8, 1.6, EVX, .02, 8.55, -Math.PI / 2, 0, evFloor);
-    const evSign = new THREE.Mesh(new THREE.PlaneGeometry(1.5, .38), plate('ELEVATOR', 256, 64, 34)); evSign.position.set(EVX, 2.8, 9.36); scene.add(evSign);
+    const evBox = (w, h, d, x, y, z, m) => { const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); o.position.set(x, y, z); ev.add(o) };
+    const evPlane = (w, h, x, y, z, rx, ry, m) => { const o = new THREE.Mesh(new THREE.PlaneGeometry(w, h), m); o.position.set(x, y, z); o.rotation.set(rx, ry, 0); ev.add(o); return o };
+    evBox(.2, 3.5, 1.6, -1, 1.75, 0, evShell); evBox(.2, 3.5, 1.6, 1, 1.75, 0, evShell);
+    evBox(2.2, 3.5, .2, 0, 1.75, -.9, evShell);
+    evBox(2.2, .4, 1.8, 0, 3.3, 0, evShell);
+    evBox(1.8, .6, .2, 0, 2.8, .7, evShell); evBox(1.9, .06, .12, 0, 2.5, .79, goldMat);
+    evPlane(1.8, 2.6, 0, 1.3, -.78, 0, 0, evBack);
+    evPlane(1.6, 2.6, -.89, 1.3, 0, 0, Math.PI / 2, evSide); evPlane(1.6, 2.6, .89, 1.3, 0, 0, -Math.PI / 2, evSide);
+    evPlane(1.2, 1.0, 0, 3.08, 0, Math.PI / 2, 0, evLight); evPlane(1.8, 1.6, 0, .02, 0, -Math.PI / 2, 0, evFloor);
+    const evSign = new THREE.Mesh(new THREE.PlaneGeometry(1.5, .38), plate('ELEVATOR', 256, 64, 34)); evSign.position.set(0, 2.8, .81); ev.add(evSign);
     const evDoorL = new THREE.Group(), evDoorR = new THREE.Group(), evDoorGeo = new THREE.BoxGeometry(.9, 2.5, .06);
-    evDoorL.position.set(3.7, 0, 9.3); evDoorR.position.set(5.5, 0, 9.3);
+    evDoorL.position.set(-.9, 0, .75); evDoorR.position.set(.9, 0, .75);
     const dl = new THREE.Mesh(evDoorGeo, evDoorMat); dl.position.set(.45, 1.25, 0); evDoorL.add(dl);
     const dr = new THREE.Mesh(evDoorGeo, evDoorMat); dr.position.set(-.45, 1.25, 0); evDoorR.add(dr);
-    scene.add(evDoorL, evDoorR);
-    solidWalls.push({ x1: 3.6, z1: 7.75, x2: 3.6, z2: 9.35, th: .1 }, { x1: 5.6, z1: 7.75, x2: 5.6, z2: 9.35, th: .1 });
+    ev.add(evDoorL, evDoorR);
+    solidWalls.push({ x1: EVX - 1, z1: EVZ - .8, x2: EVX - 1, z2: EVZ + .8, th: .12 }, { x1: EVX + 1, z1: EVZ - .8, x2: EVX + 1, z2: EVZ + .8, th: .12 }, { x1: EVX - 1.1, z1: EVZ - .9, x2: EVX + 1.1, z2: EVZ - .9, th: .12 });
+
+    // floor buttons on the cab's back wall (real meshes: click or tap them)
+    const evPanel3 = new THREE.Group(); evPanel3.position.set(.88, 1.25, .38); evPanel3.rotation.y = -Math.PI / 2; ev.add(evPanel3);   // right wall, beside the door, faces into the cab
+    const btnGeo = new THREE.CircleGeometry(.04, 24); let evBtns = [], evKey = '';
+    function btnMat(n, active) {
+      const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d');
+      x.fillStyle = active ? '#ffc94d' : '#d8d2c4'; x.beginPath(); x.arc(64, 64, 60, 0, 7); x.fill(); x.lineWidth = 8; x.strokeStyle = '#3a2a08'; x.stroke();
+      x.fillStyle = '#1d1a17'; x.font = '700 68px system-ui,sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(n, 64, 68);
+      const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; return new THREE.MeshBasicMaterial({ map: t });
+    }
+
+    function evRender() {
+      const k = rooms + ':' + myRoom; if (k === evKey) return; evKey = k;
+      for (const o of [...evPanel3.children]) { evPanel3.remove(o); o.material.map?.dispose(); o.material.dispose(); if (o.userData.plate) o.geometry.dispose() }
+      const rows = Math.min(4, rooms), cols = Math.ceil(rooms / 4), S = .105;
+      const plateM = new THREE.Mesh(new THREE.BoxGeometry(cols * S + .06, rows * S + .06, .02), new THREE.MeshLambertMaterial({ color: 0x1d1a17 }));
+      evBtns = [];
+      for (let i = 0; i < rooms; i++) {
+        const m = new THREE.Mesh(btnGeo, btnMat(i + 1, i === myRoom));
+        m.position.set((Math.floor(i / 4) - (cols - 1) / 2) * S, (i % 4 - (rows - 1) / 2) * S, .014); m.userData.floor = i;
+        evPanel3.add(m); evBtns.push(m);
+      }
+    }
+
+    renderer.domElement.addEventListener('pointerdown', e => {
+      if (!started || evBusy || !inCab()) return;
+      const nd = locked ? { x: 0, y: 0 } : { x: e.clientX / innerWidth * 2 - 1, y: -(e.clientY / innerHeight) * 2 + 1 };
+      ray.setFromCamera(nd, cam); ray.far = 4;
+      const h = ray.intersectObjects(evBtns)[0]; if (h) ride(h.object.userData.floor);
+    });
+
+    // hanging direction signs
+    function rods(x, z, ry, yTop, ceilY, half) {
+      for (const s of [-1, 1]) {
+        const L = ceilY - yTop, r = new THREE.Mesh(new THREE.CylinderGeometry(.015, .015, L, 6), darkMat);
+        r.position.set(x + Math.cos(ry) * half * s, yTop + L / 2, z - Math.sin(ry) * half * s); scene.add(r);
+      }
+    }
+    function dirSign(x, z, ry, ceilY) {
+      const tx = EVX, tz = EVZ + 1.5;
+      for (const off of [0, Math.PI]) {
+        const r = ry + off, nx = Math.sin(r), nz = Math.cos(r), dx = tx - x, dz = tz - z;
+        const ang = Math.atan2(Math.cos(r) * dx - Math.sin(r) * dz, -(nx * dx + nz * dz));
+        const c = document.createElement('canvas'); c.width = 512; c.height = 160; const g = c.getContext('2d');
+        g.fillStyle = '#1d1a17'; g.fillRect(0, 0, 512, 160); g.strokeStyle = '#c9a45c'; g.lineWidth = 6; g.strokeRect(6, 6, 500, 148);
+        g.save(); g.translate(86, 80); g.rotate(ang); g.fillStyle = '#ffc94d'; g.beginPath();
+        g.moveTo(0, -48); g.lineTo(42, -2); g.lineTo(16, -2); g.lineTo(16, 46); g.lineTo(-16, 46); g.lineTo(-16, -2); g.lineTo(-42, -2); g.closePath(); g.fill(); g.restore();
+        g.fillStyle = '#c9a45c'; g.textAlign = 'left'; g.textBaseline = 'middle'; g.font = '700 56px Georgia, serif'; g.fillText('ELEVATOR', 150, 62);
+        g.fillStyle = '#f3ead8'; g.font = '28px system-ui, sans-serif'; g.fillText('~' + Math.round(Math.hypot(dx, dz)) + ' m', 152, 118);
+        const tex = new THREE.CanvasTexture(c); tex.encoding = THREE.sRGBEncoding;
+        const m = new THREE.Mesh(new THREE.PlaneGeometry(2.2, .69), new THREE.MeshBasicMaterial({ map: tex }));
+        m.position.set(x + nx * .03, 4.7, z + nz * .03); m.rotation.y = r; scene.add(m);
+      }
+      rods(x, z, ry, 5.05, ceilY, .9);
+    }
+    dirSign(0, 3, 0, 6.4); dirSign(0, -4, 0, 6.4); dirSign(-10.5, 0, Math.PI / 2, 5.6); dirSign(10.5, 0, Math.PI / 2, 5.6);
+    rods(0, 7.5, 0, 5.0, 6.0, 1.5);   // hangs the lobby sign
 
     // ---- slots
     const gc = document.createElement('canvas'); gc.width = gc.height = 128; const gx = gc.getContext('2d'), gr = gx.createRadialGradient(64, 64, 4, 64, 64, 64); gr.addColorStop(0, 'rgba(255,240,210,.9)'); gr.addColorStop(1, 'rgba(255,240,210,0)'); gx.fillStyle = gr; gx.fillRect(0, 0, 128, 128); const glowTex = new THREE.CanvasTexture(gc);
@@ -611,6 +668,32 @@ export default function startGallery() {
         const ar = (p.w && p.h) ? p.w / p.h : 1.4, mw = 4.6, mh = 3.6; let w = mw, h = w / ar; if (h > mh) { h = mh; w = h * ar } sizeSlot(i, w, h);
         if (c.url !== p.url) { c.url = p.url; loader.load(p.url, t => { if (c.url !== p.url) { t.dispose(); return } t.encoding = THREE.sRGBEncoding; t.anisotropy = LOW ? 4 : renderer.capabilities.getMaxAnisotropy(); if (c.cv.material.map) c.cv.material.map.dispose(); c.cv.material.map = t; c.cv.material.color.set(0xffffff); c.cv.material.needsUpdate = true }) }
       });
+    }
+
+    const tvs = [], tvFrameMat = new THREE.MeshLambertMaterial({ color: 0x111111 });
+    function tv(x, z, ry, y = 2.4, w = 3.2) {
+      const h = w * 9 / 16, g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = ry;
+      const bez = new THREE.Mesh(new THREE.BoxGeometry(w + .2, h + .2, .1), tvFrameMat); bez.position.z = .05;
+      const scr = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: 0x000000 })); scr.position.z = .105;
+      g.add(bez, scr); scene.add(g); tvs.push({ m: scr, w, h, t: 99, i: tvs.length * 3, b: 1, loading: false, tex: null });
+    }
+    tv(-6.74, -6, Math.PI / 2); tv(6.74, -6, -Math.PI / 2); tv(-6.74, 6, Math.PI / 2); tv(6.74, 6, -Math.PI / 2);
+    function tvTick(dt) {
+      let list = null;
+      for (const v of tvs) {
+        v.t += dt;
+        if (!v.loading && v.t > 7) {
+          list = list || [...paintings].sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)); if (!list.length) continue;
+          v.t = 0; v.loading = true; v.i = (v.i + 1) % list.length;
+          loader.load(list[v.i].url, tx => {
+            tx.encoding = THREE.sRGBEncoding; tx.anisotropy = 4; if (v.tex) v.tex.dispose(); v.tex = tx;
+            const ar = tx.image.width / tx.image.height, w1 = Math.min(v.w, v.h * ar);
+            v.m.scale.set(w1 / v.w, (w1 / ar) / v.h, 1);
+            v.m.material.map = tx; v.m.material.needsUpdate = true; v.b = 0; v.loading = false;
+          }, undefined, () => { v.loading = false });
+        }
+        if (v.b < 1) { v.b = Math.min(1, v.b + dt * 1.6); v.m.material.color.setScalar(v.b) }
+      }
     }
 
     // ---- player
@@ -975,7 +1058,7 @@ export default function startGallery() {
       };
       [P.lLeg, P.lShin] = leg(-1);[P.rLeg, P.rShin] = leg(1);
 
-      const lb = label(name); lb.position.y = 2.1; g.add(lb); g.userData.pr = P; g.userData.lb = lb; scene.add(g); return g
+      const lb = label(name); lb.position.y = 2.1; g.add(lb); g.userData.pr = P; g.userData.lb = lb; scene.add(g); g.traverse(o => { if (o.isMesh) o.castShadow = o.receiveShadow = true }); return g
     }
     function makeAvatarOld(name, hue) {
       const g = new THREE.Group(), col = new THREE.Color(`hsl(${hue},60%,50%)`);
@@ -986,19 +1069,77 @@ export default function startGallery() {
     }
     const hueOf = s => { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) % 360; return h };
 
-    function checkPeerElevator(peerId, peer) {
-      if (!peer || !inCab() || peer.room !== myRoom) return;
+    const rec = { g: makeAvatar('Mira', 330, 'f', 11, { sk: 1, hr: 1, hu: 330 }), k: 0, ph: 0, tp: 0, em: null, wt: 0, greeted: false };
+    rec.g.position.set(RX, 0, RZ - .95); rec.g.rotation.y = Math.PI;
+    const recDist = () => Math.hypot(px - RX, pz - (RZ - .95));
 
-      const seq = peer.evSeq || 0;
+    const talkBtn = document.createElement('button'); talkBtn.type = 'button'; talkBtn.textContent = touch ? '💬 Talk to Mira' : '💬 Talk to Mira (T)';
+    talkBtn.style.cssText = 'position:fixed;left:50%;bottom:90px;transform:translateX(-50%);z-index:22;display:none;padding:10px 16px;border:0;border-radius:20px;background:#8b78e6;color:#fff;font:600 14px system-ui,sans-serif;cursor:pointer';
+    const talk = document.createElement('div');
+    talk.style.cssText = 'position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:40;display:none;width:min(440px,94vw);padding:14px;border-radius:16px;background:rgba(20,20,24,.94);color:#fff;font:14px/1.4 system-ui,sans-serif';
+    talk.innerHTML = '<div style="display:flex;justify-content:space-between;font-weight:700;margin-bottom:8px"><span>Mira · Receptionist</span><button id="tkx" style="background:none;border:0;color:#fff;font-size:18px;cursor:pointer">✕</button></div><div id="tklog" style="max-height:170px;overflow:auto;display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div><div id="tkq" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px"></div><input id="tkin" maxlength="160" placeholder="Ask Mira anything…" style="width:100%;box-sizing:border-box;padding:10px;border-radius:10px;border:0;background:#2a2830;color:#fff;font:14px system-ui,sans-serif">';
+    document.body.append(talkBtn, talk);
+    const tkLog = $('tklog'), tkIn = $('tkin'); let talkOpen = false, talkHist = [], miraAI = true;
 
-      if (!seq || peerElevatorSeq.get(peerId) === seq) return;
-
-      peerElevatorSeq.set(peerId, seq);
-
-      if (typeof peer.evTo === 'number') {
-        ride(peer.evTo, true);
-      }
+    function say(me, text) {
+      const d = document.createElement('div'); d.textContent = text;
+      d.style.cssText = 'padding:7px 10px;border-radius:10px;max-width:85%;' + (me ? 'align-self:flex-end;background:#8b78e6' : 'background:#33303a');
+      tkLog.append(d); tkLog.scrollTop = tkLog.scrollHeight; return d;
     }
+    function miraLocal(q) {
+      const s = q.toLowerCase();
+      if (/upload|add (a )?paint|submit|my art/.test(s)) return 'Press "Add painting", pick one or many images, and add a title and artist. Each room holds 24 paintings, then a new floor opens.';
+      if (/elev|floor|upstairs|room/.test(s)) return 'The elevator is the tower to my right. Step inside and press a floor button, or press L and I\'ll point you there.';
+      if (/control|move|walk|wasd|how do i/.test(s)) return 'WASD or arrows to move, mouse to look. F waves, G dances, Enter chats, M toggles your mic, X removes your own painting. On phones, left thumb moves and right thumb looks.';
+      if (/voice|mic|speak/.test(s)) return 'Press M to open your mic. You\'ll hear people in your room, louder when they\'re close.';
+      if (/tv|screen|slide/.test(s)) return 'The TVs on the side walls play a slideshow of everything visitors have uploaded.';
+      if (/teleport|visitor|friend|who.*here/.test(s)) return 'Open the Visitors list and tap Teleport to jump next to someone in your room.';
+      if (/who|made|creat|kyle/.test(s)) return 'The Gallery was created by Kyle Calites.';
+      if (/^(hi|hello|hey)/.test(s)) return 'Hello! Ask me about uploading art, the elevator, the controls, or voice chat.';
+      if (/thank/.test(s)) return 'Any time! Enjoy the art.';
+      return 'I\'m not sure about that one. Try asking about uploading, the elevator, controls, voice chat or the TVs.';
+    }
+    async function miraReply(q) {
+      if (miraAI) try {
+        const r = await fetch(API + '/api/receptionist', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: q, history: talkHist }), signal: AbortSignal.timeout(7000) });
+        if (r.status === 501) miraAI = false; else if (r.ok) { const j = await r.json(); if (j.reply) return j.reply }
+      } catch (e) { }
+      return miraLocal(q);
+    }
+    async function ask(q) {
+      q = q.trim(); if (!q) return; say(true, q); const d = say(false, '…');
+      const a = await miraReply(q); d.textContent = a; talkHist = [...talkHist, { role: 'user', content: q }, { role: 'assistant', content: a }].slice(-6);
+      tkLog.scrollTop = tkLog.scrollHeight; rec.wt = performance.now();
+    }
+    ['How do I upload art?', 'Where is the elevator?', 'Controls', 'Voice chat'].forEach(t => {
+      const b = document.createElement('button'); b.type = 'button'; b.textContent = t;
+      b.style.cssText = 'padding:6px 10px;border:0;border-radius:14px;background:#3a3740;color:#fff;font:12px system-ui,sans-serif;cursor:pointer'; b.onclick = () => ask(t); $('tkq').append(b);
+    });
+    function openTalk() {
+      if (talkOpen) return; talkOpen = true; document.exitPointerLock?.(); for (const k in keys) keys[k] = false;
+      talk.style.display = 'block'; talkBtn.style.display = 'none'; rec.wt = performance.now();
+      if (!tkLog.children.length) say(false, 'Welcome to The Gallery! I\'m Mira. What can I help you with?');
+      setTimeout(() => tkIn.focus(), 50);
+    }
+    function closeTalk() { talkOpen = false; talk.style.display = 'none'; tkIn.blur(); if (!touch) cvs.requestPointerLock?.() }
+    talkBtn.onclick = openTalk; $('tkx').onclick = closeTalk;
+    tkIn.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') { const v = tkIn.value; tkIn.value = ''; ask(v) } else if (e.key === 'Escape') closeTalk() });
+    tkIn.addEventListener('keyup', e => e.stopPropagation());
+    addEventListener('keydown', e => { if (started && e.code === 'KeyT' && !talkOpen && document.activeElement.tagName !== 'INPUT' && recDist() < 3.4) { e.preventDefault(); openTalk() } });
+
+    function receptionTick(dt) {
+      const d = recDist(), near = started && d < 7, g = rec.g;
+      const a = Math.atan2(-(px - RX), -(pz - (RZ - .95))), off = Math.atan2(Math.sin(a - Math.PI), Math.cos(a - Math.PI));
+      const want = Math.PI + (near ? Math.max(-1.1, Math.min(1.1, off)) : 0);
+      g.rotation.y += Math.atan2(Math.sin(want - g.rotation.y), Math.cos(want - g.rotation.y)) * Math.min(1, dt * 4);
+      if (near && d < 6 && !rec.greeted) { rec.greeted = true; rec.wt = performance.now() }
+      if (d > 9) rec.greeted = false;
+      animate(rec, dt);
+      talkBtn.style.display = started && !talkOpen && d < 3.4 ? 'block' : 'none';
+      if (talkOpen && d > 6) closeTalk();
+    }
+
+
     function applyPeers(ch) {
       lastPeers = ch.peers;
 
@@ -1439,9 +1580,11 @@ export default function startGallery() {
       },
       delete: async () => { }
     };
+    let hb = null, retry = 0;
     function connect() {
+      if (ws && ws.readyState <= 1) return;
       ws = new WebSocket(wsUrl);
-      ws.onopen = () => { if (Object.keys(lastState).length) wsend({ t: 'state', s: lastState }) };
+      ws.onopen = () => { retry = 0; if (Object.keys(lastState).length) wsend({ t: 'state', s: lastState }); clearInterval(hb); hb = setInterval(() => wsend({ t: 'ping' }), 20000) };
       ws.onmessage = e => {
         let m; try { m = JSON.parse(e.data) } catch { return }
         if (m.t === 'hello') wsId = m.id;
@@ -1449,8 +1592,10 @@ export default function startGallery() {
         else if (m.t === 'paintings') loadPaintings();
         else if (handlers[m.t]) handlers[m.t].forEach(h => h({ peer: m.id, isMe: m.id === wsId, sameTab: m.id === wsId, data: m.data }))
       };
-      ws.onclose = () => setTimeout(connect, 2000);
+      ws.onclose = () => { clearInterval(hb); wsId = null; for (const id of [...pcs.keys()]) closeCall(id); lastPeers = []; renderPeers(); setTimeout(connect, Math.min(10000, 1000 * 2 ** retry++)) };
+      ws.onerror = () => ws.close();
     }
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) connect() });
     room = roomS; db = dbS; assets = assetsS; local = false;
     db.collection('paintings').onSnapshot(s => { paintings = s.docs.map(x => ({ id: x.id, ...x.data() })); layout() });
     room.onPeers(applyPeers);
@@ -1490,7 +1635,7 @@ export default function startGallery() {
     function onPeerRide(peer, n) {
       if (!Number.isInteger(n) || !inCab()) return;                       // I must be inside the cab too
       const p = lastPeers.find(q => q.peer === peer), d = p && p.presence;
-      if (!d || (d.r || 0) !== myRoom || d.x < 3.6 || d.x > 5.6 || d.z < 7.7 || d.z > 9.4) return;   // the sender must be in the cab
+      if (!d || (d.r || 0) !== myRoom || d.x < EVX - 1 || d.x > EVX + 1 || d.z < EVZ - .85 || d.z > EVZ + .85) return;   // the sender must be in the cab
       ride(n, true);
     }
     room.on('react', m => {
@@ -1503,7 +1648,12 @@ export default function startGallery() {
     // ---- open mic (proximity voice chat over WebRTC)
     let micOn = false, micStream = null, actx = null, localAn = null;
     const pcs = new Map();
-    const ICE = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+    const ICE = {
+      iceServers: [
+        { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] },
+        ...(import.meta.env.VITE_TURN_URL ? [{ urls: import.meta.env.VITE_TURN_URL.split(','), username: import.meta.env.VITE_TURN_USER, credential: import.meta.env.VITE_TURN_PASS }] : [])
+      ]
+    };
     function ctxA() { if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)(); if (actx.state === 'suspended') actx.resume(); return actx }
     function level(an) { if (!an) return 0; const d = an.buf || (an.buf = new Uint8Array(an.frequencyBinCount)); an.getByteFrequencyData(d); let s = 0; for (let i = 0; i < d.length; i++) s += d[i]; return s / d.length / 255 }
     const setP = (p, x, y, z) => { if (p.positionX) { p.positionX.value = x; p.positionY.value = y; p.positionZ.value = z } else p.setPosition(x, y, z) };
@@ -1600,32 +1750,18 @@ export default function startGallery() {
     }
 
     // ---- elevator control (floors = rooms)
-    let evBusy = false, evO = 0, evWas = false, evKey = '';
-    const inCab = () => px > 3.72 && px < 5.48 && pz > 7.8 && pz < 9.3;
-    const nearEv = () => Math.abs(px - EVX) < 2.4 && pz > 7.8 && pz < 10.8;
+    let evBusy = false, evO = 0, evWas = false;
+    const inCab = () => px > EVX - .88 && px < EVX + .88 && pz > EVZ - .75 && pz < EVZ + .75;
+    const nearEv = () => Math.abs(px - EVX) < 2.4 && pz > EVZ - .75 && pz < EVZ + 2.25;
     const wait = ms => new Promise(r => setTimeout(r, ms));
     const fade = document.createElement('div');
     fade.style.cssText = 'position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity .4s;z-index:30';
     document.body.append(fade);
-    const evPanel = document.createElement('div');
-    evPanel.style.cssText = 'position:fixed;left:50%;top:16%;transform:translateX(-50%);z-index:25;display:none;max-width:90vw;max-height:50vh;overflow:auto;padding:12px 14px;border-radius:16px;background:rgba(20,20,24,.9);color:#fff;font:600 13px system-ui,sans-serif;text-align:center';
-    evPanel.id = 'evpanel'; document.body.append(evPanel);
-    function evRender() {
-      const k = rooms + ':' + myRoom; if (k === evKey) return; evKey = k; evPanel.innerHTML = '';
-      const t = document.createElement('div'); t.textContent = 'Elevator · choose a floor'; t.style.marginBottom = '8px'; evPanel.append(t);
-      for (let i = 0; i < rooms; i++) {
-        const b = document.createElement('button'); b.type = 'button'; b.textContent = i + 1;
-        b.style.cssText = 'min-width:46px;height:46px;margin:4px;border:0;border-radius:12px;font:700 17px system-ui,sans-serif;color:#fff;cursor:pointer;background:' + (i === myRoom ? '#8b78e6' : '#3a3740');
-        b.onclick = () => ride(i); evPanel.append(b);
-      }
-      const h = document.createElement('div'); h.style.cssText = 'font-size:11px;opacity:.6;margin-top:6px';
-      h.textContent = rooms < 2 ? 'More floors unlock as paintings are added.' : 'Tap a floor, or press its number key.'; evPanel.append(h);
-    }
+
     async function ride(n, fromPeer = false) {
       if (evBusy || !inCab() || n === myRoom || n < 0 || n >= rooms) return;
 
       evBusy = true;
-      evPanel.style.display = 'none';
       sfxClick();
 
       if (!fromPeer && room) room.emit('react', { e: 'ride', n }).catch(() => { });   // tells everyone else in the cab
@@ -1637,8 +1773,8 @@ export default function startGallery() {
 
       myRoom = n;
       px = EVX + (fromPeer ? (Math.random() - .5) * .8 : 0);
-      pz = 8.5;
-      yaw = Math.PI;
+      pz = EVZ + .2;
+      yaw = Math.PI;   // you face the doors after the ride, like in a real elevator
       pitch = 0;
       looking = null;
       lpx = null;
@@ -1687,9 +1823,7 @@ export default function startGallery() {
       ride(destination, true);
     }
     function elevTick(dt) {
-      const inside = started && !evBusy && inCab();
-      if (inside !== evWas) { evWas = inside; evPanel.style.display = inside ? 'block' : 'none'; if (inside && !touch) document.exitPointerLock?.() }
-      if (inside) evRender();
+      evRender();
       const tgt = started && !evBusy && nearEv() ? 1 : 0, d = tgt - evO;
       if (tgt !== evTgt) { evTgt = tgt; if (started) sfxDoor() }
       if (Math.abs(d) > .002) { evO += d * Math.min(1, dt * 5); const sc = 1 - evO * .92; evDoorL.scale.x = sc; evDoorR.scale.x = sc }
@@ -1785,7 +1919,7 @@ export default function startGallery() {
 
     function goElevator() {
       if (!started || evBusy) return; if (sitting) standUp();
-      px = EVX; pz = 10; yaw = 0; pitch = 0; lpx = null; looking = null; setPresence(true);
+      px = EVX; pz = EVZ + 1.6; yaw = 0; pitch = 0; lpx = null; looking = null; setPresence(true);
     }
     guide.onclick = goElevator;
     addEventListener('keydown', e => { if (e.code === 'KeyL' && started && document.activeElement.tagName !== 'INPUT') goElevator() });
@@ -1795,12 +1929,12 @@ export default function startGallery() {
       if (guideShow) {   // follows the camera, parked in the lower-right corner
         const hh = 1.6 * Math.tan(cam.fov * Math.PI / 360), hw = hh * cam.aspect, ox = Math.min(hw * .72, .85), oy = -hh * (cam.aspect < 1 ? .5 : .64);
         arrowV.set(ox, oy, -1.6).applyEuler(cam.rotation).add(cam.position); arrow.position.copy(arrowV);
-        arrow.rotation.y = Math.atan2(-(EVX - px), -(9.2 - pz));
+        arrow.rotation.y = Math.atan2(-(EVX - px), -(EVZ + .65 - pz));
         arrow.scale.setScalar(.38 + Math.sin(n / 220) * .02);
         labelV.set(ox, oy - hh * .24, -1.6).applyEuler(cam.rotation).add(cam.position); label3.position.copy(labelV);
       }
       if (n - gT < 150) return; gT = n;
-      const dx = EVX - px, dz = 9.2 - pz, dist = Math.hypot(dx, dz);
+      const dx = EVX - px, dz = EVZ + .65 - pz, dist = Math.hypot(dx, dz);
       const show = started && !evBusy && !inCab() && dist > 2.6;
       guideShow = show; arrow.visible = show; label3.visible = show;
       if (!show) { if (guide.style.display !== 'none') guide.style.display = 'none'; return }
@@ -1810,13 +1944,26 @@ export default function startGallery() {
       guideTxt.textContent = 'Elevator · ' + key + ' m · ' + (touch ? 'tap to go' : 'press L');
     }
 
+    const _b = new THREE.Box3();
+    function enableShadows(root = scene) {
+      root.traverse(o => {
+        if (!o.isMesh || !o.material) return;
+        const m = o.material, basic = m.isMeshBasicMaterial;
+        if (!basic) o.receiveShadow = true;
+        if (m.transparent || basic || o.geometry.type === 'PlaneGeometry') return;
+        _b.setFromObject(o); if (_b.min.y > 2.4) return;
+        o.castShadow = true;
+      });
+    }
+    enableShadows();
+
     // ---- loop
     let last = performance.now();
     (function loop(t) {
       requestAnimationFrame(loop); const dt = Math.min(.05, (t - last) / 1000); last = t;
       if (started) { step(dt); setPresence(false); look() } else { cam.position.set(0, EYE, 6); cam.rotation.set(0, Math.sin(t / 4000) * .5, 0) }
       for (const m of spinners) m.rotation.y += dt * .5;
-      elevTick(dt); guideTick(); smoothAvatars(dt); tickFloaters(); voiceTick(); renderer.render(scene, cam)
+      elevTick(dt); guideTick(); smoothAvatars(dt); receptionTick(dt); tvTick(dt); tickFloaters(); voiceTick(); renderer.render(scene, cam)
     })(last);
 
   })();
