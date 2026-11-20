@@ -3,9 +3,9 @@ export default function startGallery() {
 
   (async () => {
     const $ = id => document.getElementById(id);
-    const W = 36, D = 22, H = 7, EYE = 1.7, PER = 24;
+    const W = 36, D = 22, H = 7, EYE = 1.7; let PER = 24;
     const LOW = ('ontouchstart' in window) || navigator.maxTouchPoints > 0 || innerWidth < 800;
-    let myRoom = 0, rooms = 1, lastPeers = [], paintings = [], myId = (() => { try { let v = localStorage.getItem('gid'); if (!v) { v = 'u' + Math.random().toString(36).slice(2, 10); localStorage.setItem('gid', v) } return v } catch (e) { return 'u' + Math.random().toString(36).slice(2, 10) } })(), db = null, assets = null, room = null, local = false;
+    let myRoom = 0, rooms = 1, minRooms = 1, lastPeers = [], paintings = [], myId = (() => { try { let v = localStorage.getItem('gid'); if (!v) { v = 'u' + Math.random().toString(36).slice(2, 10); localStorage.setItem('gid', v) } return v } catch (e) { return 'u' + Math.random().toString(36).slice(2, 10) } })(), db = null, assets = null, room = null, local = false;
     let myName = ''; try { myName = localStorage.getItem('gname') || '' } catch (e) { } $('nm').value = myName; let myGen = 'n'; try { myGen = localStorage.getItem('ggen') || 'n' } catch (e) { }
     function paintGen() { document.querySelectorAll('#gen button').forEach(b => b.className = b.dataset.g === myGen ? '' : 'g') }
     document.querySelectorAll('#gen button').forEach(b => b.onclick = () => { myGen = b.dataset.g; paintGen() }); paintGen();
@@ -44,8 +44,11 @@ export default function startGallery() {
     // floor
     const fc = document.createElement('canvas'); fc.width = fc.height = 1024; const fx = fc.getContext('2d');
     for (let i = 0; i < 8; i++) { fx.fillStyle = `hsl(32,${28 + i % 3 * 4}%,${52 + i % 4 * 3}%)`; fx.fillRect(0, i * 128, 1024, 128); fx.fillStyle = '#0003'; fx.fillRect(0, i * 128, 1024, 3) }
-    const ft = new THREE.CanvasTexture(fc); ft.wrapS = ft.wrapT = THREE.RepeatWrapping; ft.repeat.set(W / 4, D / 4); ft.encoding = THREE.sRGBEncoding; ft.anisotropy = LOW ? 4 : 8;
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(W, D), new THREE.MeshStandardMaterial({ map: ft, roughness: .7 })); floor.rotation.x = -Math.PI / 2; scene.add(floor);
+    const ft = new THREE.CanvasTexture(fc); ft.wrapS = ft.wrapT = THREE.RepeatWrapping; ft.repeat.set(.25, .25); ft.encoding = THREE.sRGBEncoding; ft.anisotropy = LOW ? 4 : 8;
+    const floorShape = new THREE.Shape(); floorShape.moveTo(-W / 2, -D / 2); floorShape.lineTo(W / 2, -D / 2); floorShape.lineTo(W / 2, D / 2); floorShape.lineTo(-W / 2, D / 2); floorShape.closePath();
+    const pitHole = new THREE.Path(); pitHole.moveTo(-5.6, -10.5); pitHole.lineTo(-.9, -10.5); pitHole.lineTo(-.9, -8.3); pitHole.lineTo(-5.6, -8.3); pitHole.closePath(); floorShape.holes.push(pitHole);
+    const floorGeo = new THREE.ShapeGeometry(floorShape); floorGeo.type = 'PlaneGeometry';   // keeps the floor from casting shadows
+    const floor = new THREE.Mesh(floorGeo, new THREE.MeshStandardMaterial({ map: ft, roughness: .7 })); floor.rotation.x = -Math.PI / 2; scene.add(floor);
     const wallM = new THREE.MeshStandardMaterial({ color: 0xcfc8bb, roughness: 0.9 });
     const trimM = new THREE.MeshStandardMaterial({ color: 0x4a4038, roughness: 0.7 });
     // Tracks all solid wall segments for player collision.
@@ -185,7 +188,7 @@ export default function startGallery() {
     floorZone(0, 0, 12, 18, 0xb5a18a, 0.22);
     floorZone(-12, 0, 10, 18, 0x8e9b91, 0.18);
     floorZone(12, 0, 10, 18, 0xa28d82, 0.18);
-    floorZone(0, 9, 12, 3, 0xc4ad8e, 0.3);
+    floorZone(2.55, 9, 6.9, 3, 0xc4ad8e, 0.3);
 
     // ---- archway details above interior openings
     // ---- rounded museum archways
@@ -450,7 +453,7 @@ export default function startGallery() {
     rug(0, -1, 7, 4.5, 0x6b3a3a, 0xc9a45c);
     rug(-11, 0, 4.5, 3.2, 0x2f4a52, 0xc9b88a);
     rug(11, 0, 4.5, 3.2, 0x4a3a52, 0xc9b88a);
-    rug(0, 9.3, 4, 1.6, 0x6b3a3a, 0xc9a45c);
+    rug(0, 9.3, 1.8, 1.6, 0x6b3a3a, 0xc9a45c);
 
     // Pedestals with slowly spinning sculptures
     const pedMat = new THREE.MeshLambertMaterial({ color: 0xe8e3da });
@@ -510,8 +513,9 @@ export default function startGallery() {
     const deskTopMat = new THREE.MeshLambertMaterial({ color: 0xe8e3da });
     const darkMat = new THREE.MeshLambertMaterial({ color: 0x1d1a17 });
     const RX = -4.5, RZ = 7.2;
+    const RFACE = Math.atan2(0 - RX, 9.4 - RZ) + Math.PI, MX = RX - Math.sin(RFACE) * .95, MZ = RZ - Math.cos(RFACE) * .95;
     {
-      const g = new THREE.Group(); g.position.set(RX, 0, RZ);
+      const g = new THREE.Group(); g.position.set(RX, 0, RZ); g.rotation.y = RFACE;
       const body = new THREE.Mesh(new THREE.BoxGeometry(2.6, 1.05, .8), deskMat); body.position.y = .525;
       const top = new THREE.Mesh(new THREE.BoxGeometry(2.8, .07, .95), deskTopMat); top.position.y = 1.085;
       const trim = new THREE.Mesh(new THREE.BoxGeometry(2.6, .06, .02), goldMat); trim.position.set(0, .9, .41);
@@ -521,7 +525,7 @@ export default function startGallery() {
       const stand = new THREE.Mesh(new THREE.BoxGeometry(.06, .2, .06), darkMat); stand.position.set(-.7, 1.2, -.1);
       g.add(body, top, trim, lbl, bell, mon, stand); scene.add(g);
     }
-    solidWalls.push({ x1: RX - 1, z1: RZ, x2: RX + 1, z2: RZ, th: .55 });
+    solidWalls.push({ x1: RX - Math.cos(RFACE), z1: RZ + Math.sin(RFACE), x2: RX + Math.cos(RFACE), z2: RZ - Math.sin(RFACE), th: .55 });
 
     // ---- glass display cases in the main hall
     const glassMat = new THREE.MeshLambertMaterial({ color: 0xcfe8ff, transparent: true, opacity: .16, depthWrite: false });
@@ -539,17 +543,18 @@ export default function startGallery() {
     glassCase(-3.6, -6.2, 'knot'); glassCase(3.6, -6.2, 'dode');
 
     // ---- elevator (right side of the lobby, against the partition)
-    const EVX = 4, EVZ = 7;
-    const ev = new THREE.Group(); ev.position.set(EVX, 0, EVZ); scene.add(ev);
+    const EVX = 5.8, EVZ = 7;
+    const ev = new THREE.Group(); ev.position.set(EVX, 0, EVZ); ev.rotation.y = -Math.PI / 2; scene.add(ev);
     const evShell = new THREE.MeshLambertMaterial({ color: 0x4a4038 }), evDoorMat = new THREE.MeshLambertMaterial({ color: 0xb9b2a4 });
     const evBack = new THREE.MeshBasicMaterial({ color: 0xb39a6b }), evSide = new THREE.MeshBasicMaterial({ color: 0x8c7650 });
     const evLight = new THREE.MeshBasicMaterial({ color: 0xfff1d6 }), evFloor = new THREE.MeshBasicMaterial({ color: 0x3b3128 });
     const evBox = (w, h, d, x, y, z, m) => { const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); o.position.set(x, y, z); ev.add(o) };
     const evPlane = (w, h, x, y, z, rx, ry, m) => { const o = new THREE.Mesh(new THREE.PlaneGeometry(w, h), m); o.position.set(x, y, z); o.rotation.set(rx, ry, 0); ev.add(o); return o };
-    evBox(.2, 3.5, 1.6, -1, 1.75, 0, evShell); evBox(.2, 3.5, 1.6, 1, 1.75, 0, evShell);
-    evBox(2.2, 3.5, .2, 0, 1.75, -.9, evShell);
+    evBox(.2, H, 1.6, -1, H / 2, 0, evShell); evBox(.2, H, 1.6, 1, H / 2, 0, evShell);
+    evBox(2.2, H, .2, 0, H / 2, -.9, evShell);
     evBox(2.2, .4, 1.8, 0, 3.3, 0, evShell);
     evBox(1.8, .6, .2, 0, 2.8, .7, evShell); evBox(1.9, .06, .12, 0, 2.5, .79, goldMat);
+    evBox(2.2, H - 3.1, .2, 0, (3.1 + H) / 2, .75, evShell);   // wall above the doors up to the ceiling
     evPlane(1.8, 2.6, 0, 1.3, -.78, 0, 0, evBack);
     evPlane(1.6, 2.6, -.89, 1.3, 0, 0, Math.PI / 2, evSide); evPlane(1.6, 2.6, .89, 1.3, 0, 0, -Math.PI / 2, evSide);
     evPlane(1.2, 1.0, 0, 3.08, 0, Math.PI / 2, 0, evLight); evPlane(1.8, 1.6, 0, .02, 0, -Math.PI / 2, 0, evFloor);
@@ -559,7 +564,13 @@ export default function startGallery() {
     const dl = new THREE.Mesh(evDoorGeo, evDoorMat); dl.position.set(.45, 1.25, 0); evDoorL.add(dl);
     const dr = new THREE.Mesh(evDoorGeo, evDoorMat); dr.position.set(-.45, 1.25, 0); evDoorR.add(dr);
     ev.add(evDoorL, evDoorR);
-    solidWalls.push({ x1: EVX - 1, z1: EVZ - .8, x2: EVX - 1, z2: EVZ + .8, th: .12 }, { x1: EVX + 1, z1: EVZ - .8, x2: EVX + 1, z2: EVZ + .8, th: .12 }, { x1: EVX - 1.1, z1: EVZ - .9, x2: EVX + 1.1, z2: EVZ - .9, th: .12 });
+    solidWalls.push(
+      { x1: EVX - .8, z1: EVZ - 1, x2: EVX + .8, z2: EVZ - 1, th: .12 },
+      { x1: EVX - .8, z1: EVZ + 1, x2: EVX + .8, z2: EVZ + 1, th: .12 },
+      { x1: EVX + .9, z1: EVZ - 1.1, x2: EVX + .9, z2: EVZ + 1.1, th: .12 });
+
+    const inCab = () => Math.abs(px - EVX) < .75 && Math.abs(pz - EVZ) < .88;
+    const nearEv = () => px > EVX - 2.25 && px < EVX + .75 && Math.abs(pz - EVZ) < 2.4;
 
     // floor buttons on the cab's back wall (real meshes: click or tap them)
     const evPanel3 = new THREE.Group(); evPanel3.position.set(.88, 1.25, .38); evPanel3.rotation.y = -Math.PI / 2; ev.add(evPanel3);   // right wall, beside the door, faces into the cab
@@ -599,7 +610,7 @@ export default function startGallery() {
       }
     }
     function dirSign(x, z, ry, ceilY) {
-      const tx = EVX, tz = EVZ + 1.5;
+      const tx = EVX - 1.5, tz = EVZ;
       for (const off of [0, Math.PI]) {
         const r = ry + off, nx = Math.sin(r), nz = Math.cos(r), dx = tx - x, dz = tz - z;
         const ang = Math.atan2(Math.cos(r) * dx - Math.sin(r) * dz, -(nx * dx + nz * dz));
@@ -616,13 +627,84 @@ export default function startGallery() {
       rods(x, z, ry, 5.05, ceilY, .9);
     }
     dirSign(0, 3, 0, 6.4); dirSign(0, -4, 0, 6.4); dirSign(-10.5, 0, Math.PI / 2, 5.6); dirSign(10.5, 0, Math.PI / 2, 5.6);
+    // ---- stairs: right flight = UP, left flight = DOWN (each floor is a room)
+    const SX0 = .9, SRUN = .4, SRISE = .3, SN = 8, SZ = 9.4, SW = 1.1, TOP = SN * SRISE, LAND = 1.5, SXE = SX0 + SRUN * SN + LAND;
+    const stepMat = new THREE.MeshLambertMaterial({ color: 0xb9b2a4 }), landMat = new THREE.MeshLambertMaterial({ color: 0xe8e3da });
+    const portalMat = new THREE.MeshBasicMaterial({ color: 0xfff1d6, transparent: true, opacity: .45, side: THREE.DoubleSide, depthWrite: false });
+    const ANG = Math.atan2(SRISE, SRUN), RLEN = SN * Math.hypot(SRUN, SRISE);
+    for (const dir of [1]) {
+      for (let i = 0; i < SN; i++) {
+        const m = new THREE.Mesh(new THREE.BoxGeometry(SRUN, (i + 1) * SRISE, SW * 2), stepMat);
+        m.position.set(dir * (SX0 + SRUN * (i + .5)), (i + 1) * SRISE / 2, SZ); scene.add(m);
+      }
+      // landing = the floor above
+      const lb = new THREE.Mesh(new THREE.BoxGeometry(LAND, TOP, SW * 2), stepMat); lb.position.set(dir * (SX0 + SRUN * SN + LAND / 2), TOP / 2, SZ); scene.add(lb);
+      const ls = new THREE.Mesh(new THREE.BoxGeometry(LAND + .1, .08, SW * 2 + .1), landMat); ls.position.set(dir * (SX0 + SRUN * SN + LAND / 2), TOP + .04, SZ); scene.add(ls);
+      // railings (sloped along the flight, flat along the landing)
+      for (const sz of [-1, 1]) {
+        const r = new THREE.Mesh(new THREE.BoxGeometry(RLEN, .06, .06), goldMat);
+        r.position.set(dir * (SX0 + SRUN * SN / 2), (SRISE + TOP) / 2 + .9, SZ + sz * SW); r.rotation.z = dir * ANG; scene.add(r);
+        const fl = new THREE.Mesh(new THREE.BoxGeometry(LAND, .06, .06), goldMat);
+        fl.position.set(dir * (SX0 + SRUN * SN + LAND / 2), TOP + .95, SZ + sz * SW); scene.add(fl);
+      }
+      // glowing doorway at the end of the landing
+      // up passage open (no glowing panel)
+      const ps = new THREE.Mesh(new THREE.PlaneGeometry(2.2, .5), plate(dir > 0 ? '▲ NEXT FLOOR' : '▼ LOWER FLOOR', 384, 96, 40));
+      ps.position.set(dir * (SXE - .08), TOP + 2.7, SZ); ps.rotation.y = -dir * Math.PI / 2; scene.add(ps);
+      // hall sign
+      const s = new THREE.Mesh(new THREE.PlaneGeometry(2.2, .6), plate(dir > 0 ? '▲ UPSTAIRS' : '▼ DOWNSTAIRS', 384, 96, 40));
+      s.position.set(dir * 2.4, 4.4, 10.93); s.rotation.y = Math.PI; scene.add(s);
+      // collision: front rail and the end of the landing (open from the hall side only)
+      solidWalls.push({ x1: 1.3, z1: SZ - SW, x2: 7, z2: SZ - SW, th: .1 });   // side rail: stairs are entered from the lobby end only
+    }
+    // ---- DOWN stairs: a pit cut into the floor, steps descend as you walk left
+    {
+      for (let i = 0; i < SN - 1; i++) {
+        const h = TOP - (i + 1) * SRISE, m = new THREE.Mesh(new THREE.BoxGeometry(SRUN, h, SW * 2), stepMat);
+        m.position.set(-(SX0 + SRUN * (i + .5)), -TOP + h / 2, SZ); scene.add(m);
+      }
+      const pf = new THREE.Mesh(new THREE.BoxGeometry(SXE - SX0, .1, SW * 2), landMat); pf.position.set(-(SX0 + SXE) / 2, -TOP - .05, SZ); scene.add(pf);
+      for (const sz of [-1, 1]) {
+        const w = new THREE.Mesh(new THREE.BoxGeometry(SXE - SX0, TOP, .1), wallM); w.position.set(-(SX0 + SXE) / 2, -TOP / 2, SZ + sz * SW); scene.add(w);
+        const rl = new THREE.Mesh(new THREE.BoxGeometry(SXE - SX0, .06, .06), goldMat); rl.position.set(-(SX0 + SXE) / 2, .95, SZ + sz * SW); scene.add(rl);
+        solidWalls.push({ x1: -SX0, z1: SZ + sz * SW, x2: -SXE, z2: SZ + sz * SW, th: .1 });
+      }
+
+      const ps = new THREE.Mesh(new THREE.PlaneGeometry(2.2, .5), plate('▼ LOWER FLOOR', 384, 96, 40)); ps.position.set(-(SXE - .1), -TOP + 2.7, SZ); ps.rotation.y = Math.PI / 2; scene.add(ps);
+      const hs = new THREE.Mesh(new THREE.PlaneGeometry(2.2, .6), plate('▼ DOWNSTAIRS', 384, 96, 40)); hs.position.set(-2.4, 4.4, 10.93); hs.rotation.y = Math.PI; scene.add(hs);
+    }
+    const stairY = (x, z) => {
+      if (Math.abs(z - SZ) > SW) return 0;
+      const u = Math.abs(x) - SX0; if (u < 0 || u > SRUN * SN + LAND) return 0;
+      const s = x < 0 ? -1 : 1;
+      if (u >= SRUN * SN) return s * TOP;
+      return s * (Math.floor(u / SRUN) + 1) * SRISE;
+    };
+    let sy = 0;
+    async function climb(dir) {
+      const n = myRoom + dir;
+      if (n < 0) { addChat('Gallery', 'You are on the ground floor.'); px = dir * 2.5; return }
+      const isNew = n >= rooms;
+      if (isNew) { minRooms = Math.max(minRooms, n + 1); if (room) room.emit('react', { e: 'floor', n }).catch(() => { }) }
+      evBusy = true; sfxClick(); fade.style.opacity = '1'; await wait(450);
+      myRoom = n; px = dir > 0 ? -.5 : .5; pz = SZ; yaw = 0; pitch = 0; sy = 0; looking = null; lpx = null;
+      layout(); setPresence(true); renderPeers();
+      addChat('Gallery', isNew ? 'A new floor opened: Room ' + (n + 1) : 'Room ' + (n + 1));
+      await wait(250); fade.style.opacity = '0'; sfxDing(); await wait(300); evBusy = false;
+    }
+    function stairTick() {
+      if (!started || evBusy || sitting || Math.abs(pz - SZ) > SW || Math.abs(sy) < TOP - .6) return;
+      if (Math.abs(px) > SX0 + SRUN * (SN - 1) + .2) climb(px > 0 ? 1 : -1);   // on the last step
+    }
+
     rods(0, 7.5, 0, 5.0, 6.0, 1.5);   // hangs the lobby sign
 
     // ---- slots
     const gc = document.createElement('canvas'); gc.width = gc.height = 128; const gx = gc.getContext('2d'), gr = gx.createRadialGradient(64, 64, 4, 64, 64, 64); gr.addColorStop(0, 'rgba(255,240,210,.9)'); gr.addColorStop(1, 'rgba(255,240,210,0)'); gx.fillStyle = gr; gx.fillRect(0, 0, 128, 128); const glowTex = new THREE.CanvasTexture(gc);
     const slots = [];
-    for (let x = -15; x <= 15; x += 5) { slots.push({ x, z: -D / 2 + .05, ry: 0 }); slots.push({ x, z: D / 2 - .05, ry: Math.PI }) }
+    for (let x = -15; x <= 15; x += 5) { slots.push({ x, z: -D / 2 + .05, ry: 0 }); if (Math.abs(x) > 6.5) slots.push({ x, z: D / 2 - .05, ry: Math.PI }) }
     for (let z = -8; z <= 8; z += 4) { slots.push({ x: -W / 2 + .05, z, ry: Math.PI / 2 }); slots.push({ x: W / 2 - .05, z, ry: -Math.PI / 2 }) }
+    PER = slots.length;
     const canvases = [];
     const frameGeo = new THREE.BoxGeometry(1, 1, .08), cvGeo = new THREE.PlaneGeometry(1, 1);
     const frameMat = new THREE.MeshLambertMaterial({ color: 0x1d1a17 });
@@ -661,7 +743,7 @@ export default function startGallery() {
     const loader = new THREE.TextureLoader();
     function goRoom(d) { myRoom = (myRoom + d + rooms) % rooms; px = 0; pz = D / 2 - 4; yaw = 0; looking = null; layout(); setPresence(true); renderPeers() }
     function layout() {
-      const list = [...paintings].sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)); rooms = Math.floor(list.length / PER) + 1; if (myRoom >= rooms) myRoom = rooms - 1; $('rn').textContent = 'Room ' + (myRoom + 1) + ' / ' + rooms;
+      const list = [...paintings].sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)); rooms = Math.max(Math.floor(list.length / PER) + 1, minRooms); if (myRoom >= rooms) myRoom = rooms - 1; $('rn').textContent = 'Room ' + (myRoom + 1) + ' / ' + rooms;
       canvases.forEach((c, i) => {
         const p = list[myRoom * PER + i]; c.painting = p || null; setPlaque(c, p);
         if (!p) { if (c.url) { c.cv.material.map = null; c.cv.material.color.set(0xdcd8d0); c.cv.material.needsUpdate = true; c.url = null; sizeSlot(i, 4, 2.8) } return }
@@ -677,7 +759,7 @@ export default function startGallery() {
       const scr = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: 0x000000 })); scr.position.z = .105;
       g.add(bez, scr); scene.add(g); tvs.push({ m: scr, w, h, t: 99, i: tvs.length * 3, b: 1, loading: false, tex: null });
     }
-    tv(-6.74, -6, Math.PI / 2); tv(6.74, -6, -Math.PI / 2); tv(-6.74, 6, Math.PI / 2); tv(6.74, 6, -Math.PI / 2);
+    tv(-6.74, -6, Math.PI / 2); tv(6.74, -6, -Math.PI / 2); tv(-6.74, 6, Math.PI / 2); tv(6.74, 3.9, -Math.PI / 2, 2.4, 2.6);
     function tvTick(dt) {
       let list = null;
       for (const v of tvs) {
@@ -704,22 +786,45 @@ export default function startGallery() {
     addEventListener('keyup', e => keys[e.code] = false);
     const cvs = renderer.domElement;
     $('go').onclick = () => {
+      if (touch) stick.style.display = 'block';
       myName = ($('nm').value.trim() || 'Guest ' + myId.slice(-3)); try { localStorage.setItem('gname', myName); localStorage.setItem('ggen', myGen); localStorage.setItem('glook', JSON.stringify(myLook)) } catch (e) { }
       $('start').style.display = 'none'; started = true; $('chat').style.display = 'block'; $('emo').style.display = 'flex'; if (touch) $('cross').style.display = 'block'; try { ctxA() } catch (e) { } setPresence(true); if (!touch) cvs.requestPointerLock?.()
     };
     cvs.addEventListener('click', () => { if (started && !touch && !locked) cvs.requestPointerLock?.() });
     document.addEventListener('pointerlockchange', () => locked = document.pointerLockElement === cvs);
     document.addEventListener('mousemove', e => { if (!locked) return; yaw -= e.movementX * .0025; pitch = Math.max(-1.2, Math.min(1.2, pitch - e.movementY * .0025)) });
+
+
+    const stick = document.createElement('div');
+    stick.style.cssText = 'position:fixed;left:22px;bottom:calc(120px + env(safe-area-inset-bottom));width:130px;height:130px;border-radius:50%;background:rgba(255,255,255,.1);border:2px solid rgba(255,255,255,.35);z-index:18;display:none;pointer-events:none;color:#fff;font:12px sans-serif';
+    stick.innerHTML = '<span style="position:absolute;top:4px;left:50%;transform:translateX(-50%);opacity:.6">▲</span><span style="position:absolute;bottom:4px;left:50%;transform:translateX(-50%);opacity:.6">▼</span><span style="position:absolute;left:6px;top:50%;transform:translateY(-50%);opacity:.6">◀</span><span style="position:absolute;right:6px;top:50%;transform:translateY(-50%);opacity:.6">▶</span>';
+    const knob = document.createElement('div');
+    knob.style.cssText = 'position:absolute;left:50%;top:50%;width:54px;height:54px;border-radius:50%;background:rgba(255,255,255,.55);border:2px solid #fff;transform:translate(-50%,-50%);box-shadow:0 2px 8px #0006';
+    stick.append(knob); document.body.append(stick);
+    const JR = 50, joyV = { x: 0, y: 0 }; let joyId = null;
+    const inStick = (x, y) => { const r = stick.getBoundingClientRect(); return Math.hypot(x - (r.left + r.width / 2), y - (r.top + r.height / 2)) < r.width * .85 };
+    function joyMove(t) {
+      const r = stick.getBoundingClientRect(); let dx = t.clientX - (r.left + r.width / 2), dy = t.clientY - (r.top + r.height / 2); const d = Math.hypot(dx, dy);
+      if (d > JR) { dx *= JR / d; dy *= JR / d } joyV.x = dx / JR; joyV.y = dy / JR;
+      knob.style.transform = `translate(calc(-50% + ${dx}px),calc(-50% + ${dy}px))`;
+    }
+    function joyEnd() { joyId = null; joyV.x = joyV.y = 0; knob.style.transform = 'translate(-50%,-50%)' }
     const tp = {};
-    cvs.addEventListener('touchstart', e => { for (const t of e.changedTouches) { if (t.clientX < innerWidth / 2) { const j = $('joy'); j.style.left = t.clientX + 'px'; j.style.top = t.clientY + 'px'; j.style.display = 'block' } tp[t.identifier] = { x0: t.clientX, y0: t.clientY, x: t.clientX, y: t.clientY, mode: t.clientX < innerWidth / 2 ? 'm' : 'l' } } }, { passive: true });
-    cvs.addEventListener('touchmove', e => {
+    cvs.addEventListener('touchstart', e => {
       for (const t of e.changedTouches) {
-        const p = tp[t.identifier]; if (!p) continue;
-        if (p.mode === 'l') { yaw -= (t.clientX - p.x) * .005; pitch = Math.max(-1.2, Math.min(1.2, pitch - (t.clientY - p.y) * .005)) }
-        p.x = t.clientX; p.y = t.clientY
+        if (started && joyId === null && inStick(t.clientX, t.clientY)) { joyId = t.identifier; joyMove(t) }
+        else tp[t.identifier] = { x: t.clientX, y: t.clientY }
       }
     }, { passive: true });
-    const endT = e => { for (const t of e.changedTouches) { if (tp[t.identifier] && tp[t.identifier].mode === 'm') $('joy').style.display = 'none'; delete tp[t.identifier] } }; cvs.addEventListener('touchend', endT); cvs.addEventListener('touchcancel', endT);
+    cvs.addEventListener('touchmove', e => {
+      for (const t of e.changedTouches) {
+        if (t.identifier === joyId) { joyMove(t); continue }
+        const p = tp[t.identifier]; if (!p) continue;
+        yaw -= (t.clientX - p.x) * .005; pitch = Math.max(-1.2, Math.min(1.2, pitch - (t.clientY - p.y) * .005)); p.x = t.clientX; p.y = t.clientY
+      }
+    }, { passive: true });
+    const endT = e => { for (const t of e.changedTouches) { if (t.identifier === joyId) joyEnd(); delete tp[t.identifier] } };
+    cvs.addEventListener('touchend', endT); cvs.addEventListener('touchcancel', endT);
 
     // ---- teleport to another player
 
@@ -793,7 +898,8 @@ export default function startGallery() {
       // Reset vertical camera angle.
       pitch = 0;
 
-      cam.position.set(px, EYE, pz);
+      sy = stairY(px, pz);
+      cam.position.set(px, EYE + sy, pz);
       cam.rotation.set(pitch, yaw, 0, 'YXZ');
 
       // Synchronize the new position with other visitors.
@@ -813,21 +919,15 @@ export default function startGallery() {
       if (keys.ArrowLeft) yaw += dt * 1.8;
       if (keys.ArrowRight) yaw -= dt * 1.8;
 
-      for (const id in tp) {
-        const p = tp[id];
-
-        if (p.mode === 'm') {
-          f += Math.max(-1, Math.min(1, (p.y0 - p.y) / 50));
-          r += Math.max(-1, Math.min(1, (p.x - p.x0) / 50));
-        }
-      }
+      f += -joyV.y; r += joyV.x;
 
       if (sitting && Math.abs(f) + Math.abs(r) > .3) {
         standUp();
       }
 
       if (sitting) {
-        cam.position.set(px, 1.25, pz);
+        sy += (stairY(px, pz) - sy) * Math.min(1, dt * 14);
+        cam.position.set(px, EYE + sy + Math.sin(performance.now() / 260) * (Math.abs(f) + Math.abs(r) > 0 ? .015 : 0), pz);
         cam.rotation.set(pitch, yaw, 0, 'YXZ');
         return;
       }
@@ -865,9 +965,10 @@ export default function startGallery() {
       pz = Math.max(-D / 2 + .9, Math.min(D / 2 - .9, pz));
       if (lpx !== null) { const dd = Math.hypot(px - lpx, pz - lpz); if (dd < 1) { stepAcc += dd; if (stepAcc > 1.2) { stepAcc = 0; sfxStep() } } } lpx = px; lpz = pz;
 
+      sy += (stairY(px, pz) - sy) * Math.min(1, dt * 14);
       cam.position.set(
         px,
-        EYE + Math.sin(performance.now() / 260) *
+        EYE + sy + Math.sin(performance.now() / 260) *
         (Math.abs(f) + Math.abs(r) > 0 ? .015 : 0),
         pz
       );
@@ -1070,8 +1171,8 @@ export default function startGallery() {
     const hueOf = s => { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) % 360; return h };
 
     const rec = { g: makeAvatar('Mira', 330, 'f', 11, { sk: 1, hr: 1, hu: 330 }), k: 0, ph: 0, tp: 0, em: null, wt: 0, greeted: false };
-    rec.g.position.set(RX, 0, RZ - .95); rec.g.rotation.y = Math.PI;
-    const recDist = () => Math.hypot(px - RX, pz - (RZ - .95));
+    rec.g.position.set(MX, 0, MZ); rec.g.rotation.y = RFACE + Math.PI;
+    const recDist = () => Math.hypot(px - MX, pz - MZ);
 
     const talkBtn = document.createElement('button'); talkBtn.type = 'button'; talkBtn.textContent = touch ? '💬 Talk to Mira' : '💬 Talk to Mira (T)';
     talkBtn.style.cssText = 'position:fixed;left:50%;bottom:90px;transform:translateX(-50%);z-index:22;display:none;padding:10px 16px;border:0;border-radius:20px;background:#8b78e6;color:#fff;font:600 14px system-ui,sans-serif;cursor:pointer';
@@ -1129,8 +1230,8 @@ export default function startGallery() {
 
     function receptionTick(dt) {
       const d = recDist(), near = started && d < 7, g = rec.g;
-      const a = Math.atan2(-(px - RX), -(pz - (RZ - .95))), off = Math.atan2(Math.sin(a - Math.PI), Math.cos(a - Math.PI));
-      const want = Math.PI + (near ? Math.max(-1.1, Math.min(1.1, off)) : 0);
+      const a = Math.atan2(-(px - MX), -(pz - MZ)), B = RFACE + Math.PI, off = Math.atan2(Math.sin(a - B), Math.cos(a - B));
+      const want = B + (near ? Math.max(-1.1, Math.min(1.1, off)) : 0);
       g.rotation.y += Math.atan2(Math.sin(want - g.rotation.y), Math.cos(want - g.rotation.y)) * Math.min(1, dt * 4);
       if (near && d < 6 && !rec.greeted) { rec.greeted = true; rec.wt = performance.now() }
       if (d > 9) rec.greeted = false;
@@ -1250,9 +1351,9 @@ export default function startGallery() {
         const gn = ['m', 'f'].includes(d.g) ? d.g : 'n'; const sig = [gn, d.sk, d.hr, d.hu].join(); if (!a || a.name !== nm || a.sig !== sig) { if (a) scene.remove(a.g); const hu = (d.hu != null && Number.isFinite(+d.hu)) ? ((+d.hu % 360) + 360) % 360 : hueOf(p.peer); a = { g: makeAvatar(nm, hu, gn, seedOf(p.peer), d), name: nm, sig, ph: 0, k: 0, wv: d.w || 0, wt: 0, tx: d.x, tz: d.z, try: d.ry || 0, buf: [] }; a.g.position.set(d.x, 0, d.z); avatars.set(p.peer, a) }
         a.tx = d.x; a.tz = d.z; a.try = d.ry || 0;
         const ls = a.buf[a.buf.length - 1];
-        if (!ls || ls.x !== d.x || ls.z !== d.z || ls.r !== a.try) {
+        if (!ls || ls.x !== d.x || ls.z !== d.z || ls.y !== (d.y || 0) || ls.r !== a.try) {
           if (ls && Math.hypot(d.x - ls.x, d.z - ls.z) > 4) a.buf.length = 0;   // teleport or elevator: jump, don't slide
-          a.buf.push({ t: performance.now(), x: d.x, z: d.z, r: a.try }); if (a.buf.length > 8) a.buf.shift();
+          a.buf.push({ t: performance.now(), x: d.x, z: d.z, y: d.y || 0, r: a.try }); if (a.buf.length > 8) a.buf.shift();
         }
         a.mic = !!d.mic; setSpeaking(a, !!a.spk && a.mic);
         const headPitch = Number(d.pit ?? d.rp ?? 0);
@@ -1272,9 +1373,13 @@ export default function startGallery() {
           const p = b[i], q = b[i + 1];
           if (q && q.t > p.t) {
             const f = Math.max(0, Math.min(1, (rt - p.t) / (q.t - p.t)));
-            g.position.x = p.x + (q.x - p.x) * f; g.position.z = p.z + (q.z - p.z) * f;
+            g.position.x = p.x + (q.x - p.x) * f; g.position.z = p.z + (q.z - p.z) * f; a.by = (p.y || 0) + ((q.y || 0) - (p.y || 0)) * f;
             let dr = q.r - p.r; dr = Math.atan2(Math.sin(dr), Math.cos(dr)); g.rotation.y = p.r + dr * f;
-          } else { g.position.x = p.x; g.position.z = p.z; g.rotation.y = p.r }
+          } else { g.position.x = p.x; g.position.z = p.z; a.by = p.y || 0; g.rotation.y = p.r }
+        }
+        {
+          const ux = Math.abs(g.position.x) - SX0, sgn = g.position.x < 0 ? -1 : 1;
+          a.by = (Math.abs(g.position.z - SZ) > SW || ux < 0) ? 0 : sgn * Math.min(TOP, SRISE * (ux / SRUN + 1));
         }
         animate(a, dt);
       }
@@ -1356,9 +1461,9 @@ export default function startGallery() {
         P.lShin.rotation.x = P.lShin.rotation.x * u2 - 1.45 * S;
         P.rShin.rotation.x = P.rShin.rotation.x * u2 - 1.45 * S;
 
-        g.position.y = -.32 * S;
+        g.position.y = (a.by || 0) - .32 * S;
       } else {
-        g.position.y = 0;
+        g.position.y = a.by || 0;
       }
 
 
@@ -1381,8 +1486,8 @@ export default function startGallery() {
     let lastSent = 0, lastKey = '', evSeq = 0, evTo = 0; const evSeen = new Map();
     function setPresence(force) {
       if (!room || !started) return; const now = performance.now(); if (!force && now - lastSent < 70) return;
-      const k = [px.toFixed(2), pz.toFixed(2), yaw.toFixed(2), pitch.toFixed(2), myRoom, myWave, emote, micOn, evSeq].join(); if (!force && k === lastKey) return; lastKey = k; lastSent = now;
-      room.presence({ x: +px.toFixed(2), z: +pz.toFixed(2), ry: +yaw.toFixed(2), pit: +pitch.toFixed(2), rp: +pitch.toFixed(2), r: myRoom, g: myGen, sk: myLook.sk, hr: myLook.hr, hu: myLook.hu, w: myWave, em: emote, mic: micOn, eq: evSeq, et: evTo, name: myName }).catch(() => { });
+      const k = [px.toFixed(2), pz.toFixed(2), sy.toFixed(2), yaw.toFixed(2), pitch.toFixed(2), myRoom, myWave, emote, micOn, evSeq].join(); if (!force && k === lastKey) return; lastKey = k; lastSent = now;
+      room.presence({ x: +px.toFixed(2), z: +pz.toFixed(2), y: +sy.toFixed(2), ry: +yaw.toFixed(2), pit: +pitch.toFixed(2), rp: +pitch.toFixed(2), r: myRoom, g: myGen, sk: myLook.sk, hr: myLook.hr, hu: myLook.hu, w: myWave, em: emote, mic: micOn, eq: evSeq, et: evTo, name: myName }).catch(() => { });
     }
 
     // ---- captions + removal
@@ -1495,7 +1600,7 @@ export default function startGallery() {
           }
         }
 
-        layout();
+        await loadPaintings();
 
         if (uploaded > 0 && failed === 0) {
           msg.textContent = `Successfully uploaded ${uploaded} paintings!`;
@@ -1519,7 +1624,14 @@ export default function startGallery() {
 
     // ---- network (own Node server)
     const API = (import.meta.env.VITE_API || '').replace(/\/$/, '');
-    const assetUrl = url => url?.startsWith('http') ? url : `${API}${url}`;
+    const assetUrl = u => {
+      if (!u) return u;
+      try {
+        const x = new URL(u, location.href);
+        if (x.hostname !== location.hostname && /^(localhost|127\.|10\.|192\.168\.)/.test(x.hostname)) return API + x.pathname + x.search;
+      } catch (e) { }
+      return u.startsWith('http') ? u : API + u;
+    };
     const wsUrl = import.meta.env.VITE_WS || ((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws');
     let ws = null, wsId = null, lastState = {}, peersCb = null, snapCb = null; const handlers = { chat: [], react: [], rtc: [] };
     const wsend = o => { if (ws && ws.readyState === 1) ws.send(JSON.stringify(o)) };
@@ -1571,12 +1683,7 @@ export default function startGallery() {
           throw new Error('Upload failed (' + r.status + ')');
         }
 
-        const data = await r.json();
-
-        return {
-          ...data,
-          url: assetUrl(data.url)
-        };
+        const data = await r.json(); return data;
       },
       delete: async () => { }
     };
@@ -1584,7 +1691,7 @@ export default function startGallery() {
     function connect() {
       if (ws && ws.readyState <= 1) return;
       ws = new WebSocket(wsUrl);
-      ws.onopen = () => { retry = 0; if (Object.keys(lastState).length) wsend({ t: 'state', s: lastState }); clearInterval(hb); hb = setInterval(() => wsend({ t: 'ping' }), 20000) };
+      ws.onopen = () => { retry = 0; if (Object.keys(lastState).length) wsend({ t: 'state', s: lastState }); clearInterval(hb); hb = setInterval(() => wsend({ t: 'ping' }), 20000), loadPaintings(); };
       ws.onmessage = e => {
         let m; try { m = JSON.parse(e.data) } catch { return }
         if (m.t === 'hello') wsId = m.id;
@@ -1595,6 +1702,7 @@ export default function startGallery() {
       ws.onclose = () => { clearInterval(hb); wsId = null; for (const id of [...pcs.keys()]) closeCall(id); lastPeers = []; renderPeers(); setTimeout(connect, Math.min(10000, 1000 * 2 ** retry++)) };
       ws.onerror = () => ws.close();
     }
+    setInterval(() => { if (!document.hidden) loadPaintings() }, 20000);
     document.addEventListener('visibilitychange', () => { if (!document.hidden) connect() });
     room = roomS; db = dbS; assets = assetsS; local = false;
     db.collection('paintings').onSnapshot(s => { paintings = s.docs.map(x => ({ id: x.id, ...x.data() })); layout() });
@@ -1632,15 +1740,15 @@ export default function startGallery() {
         }, 4500);
       }
     });
-    function onPeerRide(peer, n) {
-      if (!Number.isInteger(n) || !inCab()) return;                       // I must be inside the cab too
-      const p = lastPeers.find(q => q.peer === peer), d = p && p.presence;
-      if (!d || (d.r || 0) !== myRoom || d.x < EVX - 1 || d.x > EVX + 1 || d.z < EVZ - .85 || d.z > EVZ + .85) return;   // the sender must be in the cab
+    function onPeerRide(peer, n, from) {
+      if (!Number.isInteger(n) || !inCab() || Number(from) !== myRoom) return;
+      const d = lastPeers.find(q => q.peer === peer)?.presence;
+      if (d && d.x != null && Math.hypot(d.x - EVX, d.z - EVZ) > 4) return;   // sender must be near the elevator
       ride(n, true);
     }
     room.on('react', m => {
-      if (m.sameTab) return; const d = m.data || {};
-      if (d.e === 'ride') { onPeerRide(m.peer, +d.n); return }
+      if (m.sameTab) return; const d = m.data || {}; if (d.e === 'floor') { const n = +d.n; if (Number.isInteger(n) && n > 0 && n < 50) { minRooms = Math.max(minRooms, n + 1); layout() } return }
+      if (d.e === 'ride') { onPeerRide(m.peer, +d.n, d.from); return }
       const a = avatars.get(m.peer), e = String(d.e || ''); if (a && EMO.includes(e)) spawnFloat(a.g, e);
     });
     connect();
@@ -1751,8 +1859,6 @@ export default function startGallery() {
 
     // ---- elevator control (floors = rooms)
     let evBusy = false, evO = 0, evWas = false;
-    const inCab = () => px > EVX - .88 && px < EVX + .88 && pz > EVZ - .75 && pz < EVZ + .75;
-    const nearEv = () => Math.abs(px - EVX) < 2.4 && pz > EVZ - .75 && pz < EVZ + 2.25;
     const wait = ms => new Promise(r => setTimeout(r, ms));
     const fade = document.createElement('div');
     fade.style.cssText = 'position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity .4s;z-index:30';
@@ -1764,7 +1870,7 @@ export default function startGallery() {
       evBusy = true;
       sfxClick();
 
-      if (!fromPeer && room) room.emit('react', { e: 'ride', n }).catch(() => { });   // tells everyone else in the cab
+      if (!fromPeer && room) room.emit('react', { e: 'ride', n, from: myRoom }).catch(() => { });   // tells everyone else in the cab
 
       await wait(600);
       fade.style.opacity = '1';
@@ -1772,9 +1878,7 @@ export default function startGallery() {
       await wait(450);
 
       myRoom = n;
-      px = EVX + (fromPeer ? (Math.random() - .5) * .8 : 0);
-      pz = EVZ + .2;
-      yaw = Math.PI;   // you face the doors after the ride, like in a real elevator
+      px = EVX + .2; pz = EVZ + (fromPeer ? (Math.random() - .5) * .8 : 0); yaw = Math.PI / 2;
       pitch = 0;
       looking = null;
       lpx = null;
@@ -1893,54 +1997,20 @@ export default function startGallery() {
     guide.style.cssText = 'position:fixed;left:50%;top:10px;transform:translateX(-50%);z-index:20;display:none;align-items:center;gap:8px;padding:7px 14px;border:0;border-radius:20px;background:rgba(20,20,24,.82);color:#fff;font:600 13px system-ui,sans-serif;cursor:pointer';
     guide.id = 'guide'; const guideTxt = document.createElement('span'); guide.append(guideTxt); document.body.append(guide);
 
-    const arrowMat = new THREE.MeshBasicMaterial({ color: 0xffc94d, depthTest: false, fog: false });
-    const arrow = new THREE.Group(), arrowPivot = new THREE.Group();
-    const aShaft = new THREE.Mesh(new THREE.BoxGeometry(.14, .08, .5), arrowMat); aShaft.position.z = .12;
-    const aHead = new THREE.Mesh(new THREE.ConeGeometry(.17, .38, 4), arrowMat); aHead.rotation.x = -Math.PI / 2; aHead.position.z = -.32;
-    const aEdge = new THREE.Mesh(new THREE.BoxGeometry(.2, .03, .6), new THREE.MeshBasicMaterial({ color: 0x3a2a08, depthTest: false, fog: false })); aEdge.position.set(0, -.06, .06);
-    for (const m of [aShaft, aHead, aEdge]) m.renderOrder = 999; aEdge.renderOrder = 998;
-    arrowPivot.add(aShaft, aHead, aEdge); arrowPivot.rotation.x = -.5;
-    arrow.add(arrowPivot); arrow.visible = false; scene.add(arrow);
-
-    // text label under the arrow (canvas redrawn only when the distance changes)
-    const lc = document.createElement('canvas'); lc.width = 256; lc.height = 64; const lx = lc.getContext('2d');
-    const ltex = new THREE.CanvasTexture(lc); ltex.generateMipmaps = false; ltex.minFilter = THREE.LinearFilter; ltex.encoding = THREE.sRGBEncoding;
-    const label3 = new THREE.Sprite(new THREE.SpriteMaterial({ map: ltex, transparent: true, depthTest: false, fog: false }));
-    label3.scale.set(.5, .125, 1); label3.renderOrder = 1000; label3.visible = false; scene.add(label3);
-    function drawGuideLabel(m) {
-      lx.clearRect(0, 0, 256, 64); lx.fillStyle = 'rgba(20,20,24,.75)'; lx.fillRect(4, 6, 248, 52);
-      lx.strokeStyle = '#c9a45c'; lx.lineWidth = 2; lx.strokeRect(4, 6, 248, 52);
-      lx.textAlign = 'center'; lx.textBaseline = 'middle';
-      lx.fillStyle = '#ffc94d'; lx.font = '700 22px system-ui,sans-serif'; lx.fillText('ELEVATOR', 128, 24);
-      lx.fillStyle = '#fff'; lx.font = '600 16px system-ui,sans-serif'; lx.fillText(m + ' m', 128, 45);
-      ltex.needsUpdate = true;
-    }
-    const arrowV = new THREE.Vector3(), labelV = new THREE.Vector3();
-
     function goElevator() {
       if (!started || evBusy) return; if (sitting) standUp();
-      px = EVX; pz = EVZ + 1.6; yaw = 0; pitch = 0; lpx = null; looking = null; setPresence(true);
+      px = EVX - 1.6; pz = EVZ; yaw = -Math.PI / 2; pitch = 0; sy = 0; lpx = null; looking = null; setPresence(true);
     }
     guide.onclick = goElevator;
     addEventListener('keydown', e => { if (e.code === 'KeyL' && started && document.activeElement.tagName !== 'INPUT') goElevator() });
-    let gT = 0, gKey = -1, guideShow = false;
+    let gT = 0, gKey = -1;
     function guideTick() {
-      const n = performance.now();
-      if (guideShow) {   // follows the camera, parked in the lower-right corner
-        const hh = 1.6 * Math.tan(cam.fov * Math.PI / 360), hw = hh * cam.aspect, ox = Math.min(hw * .72, .85), oy = -hh * (cam.aspect < 1 ? .5 : .64);
-        arrowV.set(ox, oy, -1.6).applyEuler(cam.rotation).add(cam.position); arrow.position.copy(arrowV);
-        arrow.rotation.y = Math.atan2(-(EVX - px), -(EVZ + .65 - pz));
-        arrow.scale.setScalar(.38 + Math.sin(n / 220) * .02);
-        labelV.set(ox, oy - hh * .24, -1.6).applyEuler(cam.rotation).add(cam.position); label3.position.copy(labelV);
-      }
-      if (n - gT < 150) return; gT = n;
-      const dx = EVX - px, dz = EVZ + .65 - pz, dist = Math.hypot(dx, dz);
+      const n = performance.now(); if (n - gT < 150) return; gT = n;
+      const dist = Math.hypot(EVX - .65 - px, EVZ - pz);
       const show = started && !evBusy && !inCab() && dist > 2.6;
-      guideShow = show; arrow.visible = show; label3.visible = show;
       if (!show) { if (guide.style.display !== 'none') guide.style.display = 'none'; return }
       if (guide.style.display === 'none') guide.style.display = 'flex';
       const key = Math.round(dist); if (key === gKey) return; gKey = key;
-      drawGuideLabel(key);
       guideTxt.textContent = 'Elevator · ' + key + ' m · ' + (touch ? 'tap to go' : 'press L');
     }
 
@@ -1963,7 +2033,7 @@ export default function startGallery() {
       requestAnimationFrame(loop); const dt = Math.min(.05, (t - last) / 1000); last = t;
       if (started) { step(dt); setPresence(false); look() } else { cam.position.set(0, EYE, 6); cam.rotation.set(0, Math.sin(t / 4000) * .5, 0) }
       for (const m of spinners) m.rotation.y += dt * .5;
-      elevTick(dt); guideTick(); smoothAvatars(dt); receptionTick(dt); tvTick(dt); tickFloaters(); voiceTick(); renderer.render(scene, cam)
+      elevTick(dt); stairTick(); guideTick(); smoothAvatars(dt); receptionTick(dt); tvTick(dt); tickFloaters(); voiceTick(); renderer.render(scene, cam)
     })(last);
 
   })();
