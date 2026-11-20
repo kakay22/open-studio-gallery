@@ -1413,23 +1413,75 @@ export default function startGallery() {
       const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true }));
       s.scale.set(1.75, .35, 1); s.position.y = 2.15; s.userData = { c, tex, text, st: -1 }; drawLabel(s, 0); return s
     }
-    function drawLabel(s, st) {   // st: 0 = no mic, 1 = mic on, 2 = speaking
-      const u = s.userData; if (u.st === st) return; u.st = st;
-      const x = u.c.getContext('2d'); x.clearRect(0, 0, 320, 64);
-      x.font = '600 30px system-ui,sans-serif'; x.textAlign = 'left'; x.textBaseline = 'middle';
-      const tw = Math.min(238, x.measureText(u.text).width), w = tw + 24 + (st ? 38 : 0), l = 160 - w / 2;
-      x.fillStyle = st === 2 ? 'rgba(24,120,64,.95)' : 'rgba(20,20,22,.75)'; x.fillRect(l, 8, w, 48);
-      if (st === 2) { x.strokeStyle = '#6dff8c'; x.lineWidth = 3; x.strokeRect(l, 8, w, 48) }
-      x.fillStyle = '#fff'; x.fillText(u.text, l + 12, 33, 238);
-      if (st) {
-        const mx = l + 12 + tw + 21, col = st === 2 ? '#b6ffc9' : '#c9c5bb';
-        x.fillStyle = x.strokeStyle = col; x.lineWidth = 3; x.lineCap = 'round';
-        x.beginPath(); x.roundRect(mx - 5, 15, 10, 20, 5); x.fill();
-        x.beginPath(); x.arc(mx, 26, 10, 0, Math.PI); x.stroke();
-        x.beginPath(); x.moveTo(mx, 36); x.lineTo(mx, 43); x.stroke();
+
+    function drawLabel(s, st) {
+      const u = s.userData;
+
+      if (u.st === st && !u.chatText) return;
+      u.st = st;
+
+      const x = u.c.getContext('2d');
+      x.clearRect(0, 0, 320, 64);
+
+      const text = u.chatText || u.text;
+
+      x.font = '600 25px system-ui,sans-serif';
+      x.textAlign = 'center';
+      x.textBaseline = 'middle';
+
+      const maxWidth = 290;
+      const words = String(text).split(' ');
+      const lines = [];
+      let line = '';
+
+      for (const word of words) {
+        const test = line ? line + ' ' + word : word;
+
+        if (x.measureText(test).width > maxWidth && line) {
+          lines.push(line);
+          line = word;
+        } else {
+          line = test;
+        }
       }
+
+      if (line) lines.push(line);
+
+      const visible = lines.slice(0, 2);
+      const lineHeight = 22;
+      const boxHeight = visible.length * lineHeight + 14;
+      const top = (64 - boxHeight) / 2;
+
+      x.fillStyle = u.chatText
+        ? 'rgba(20,20,24,.95)'
+        : st === 2
+          ? 'rgba(24,120,64,.95)'
+          : 'rgba(20,20,22,.75)';
+
+      x.beginPath();
+      x.roundRect(160 - 155, top, 310, boxHeight, 9);
+      x.fill();
+
+      if (st === 2 && !u.chatText) {
+        x.strokeStyle = '#6dff8c';
+        x.lineWidth = 2;
+        x.stroke();
+      }
+
+      x.fillStyle = '#fff';
+
+      visible.forEach((line, i) => {
+        x.fillText(
+          line,
+          160,
+          top + 7 + i * lineHeight + lineHeight / 2,
+          maxWidth
+        );
+      });
+
       u.tex.needsUpdate = true;
     }
+
     function chatBubble(text) {
       const c = document.createElement('canvas');
       c.width = 512;
@@ -2136,6 +2188,7 @@ export default function startGallery() {
     room = roomS; db = dbS; assets = assetsS; local = false;
     db.collection('paintings').onSnapshot(s => { paintings = s.docs.map(x => ({ id: x.id, ...x.data() })); layout() });
     room.onPeers(applyPeers);
+
     room.on('chat', m => {
       if (m.sameTab) return;
 
@@ -2147,28 +2200,24 @@ export default function startGallery() {
 
       const a = avatars.get(m.peer);
 
-      if (a && message) {
-        if (a.bubble) {
-          a.g.remove(a.bubble);
-          a.bubble.material.map?.dispose();
-          a.bubble.material.dispose();
-        }
+      if (a && message && a.g && a.g.userData.lb) {
+        const label = a.g.userData.lb;
+        const u = label.userData;
 
-        a.bubble = chatBubble(message);
-        a.g.add(a.bubble);
+        clearTimeout(a.chatLabelTimer);
 
-        clearTimeout(a.bubbleTimer);
+        u.chatText = message;
+        u.st = -1;
+        drawLabel(label, 0);
 
-        a.bubbleTimer = setTimeout(() => {
-          if (a.bubble) {
-            a.g.remove(a.bubble);
-            a.bubble.material.map?.dispose();
-            a.bubble.material.dispose();
-            a.bubble = null;
-          }
+        a.chatLabelTimer = setTimeout(() => {
+          u.chatText = '';
+          u.st = -1;
+          drawLabel(label, 0);
         }, 4500);
       }
     });
+
     function onPeerRide(peer, n, from) {
       if (!Number.isInteger(n) || !inCab() || Number(from) !== myRoom) return;
       const d = lastPeers.find(q => q.peer === peer)?.presence;
