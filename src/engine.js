@@ -829,7 +829,9 @@ export default function startGallery() {
       g.add(bez, scr); scene.add(g); tvs.push({ m: scr, w, h, t: 99, i: tvs.length * 3, b: 1, loading: false, tex: null });
     }
     tv(-6.74, -6, Math.PI / 2); tv(6.74, -6, -Math.PI / 2); tv(-6.74, 6, Math.PI / 2); tv(6.74, 3.9, -Math.PI / 2, 2.4, 2.6);
-    const leds = [], ledCache = new Map(); let ledIdx = 0; const LEDK = LOW ? 9 : 14;
+    const leds = [], ledCache = new Map();
+    let ledIdx = 0;
+    let ledStackOrder = 0; const LEDK = LOW ? 9 : 14;
     function ledTex(url, cb) {
       let p = ledCache.get(url);
       if (!p) {
@@ -872,7 +874,7 @@ export default function startGallery() {
       };
 
       for (let k = 0; k < LEDK; k++) {
-        const depth = .15 + k * .025;
+        const depth = .135;
 
         // Soft shadow underneath the printed photo
         const shadow = new THREE.Mesh(
@@ -888,9 +890,12 @@ export default function startGallery() {
 
         // White paper backing / photo border
         const backing = new THREE.Mesh(
-          new THREE.BoxGeometry(1, 1, .018),
+          new THREE.PlaneGeometry(1, 1),
           new THREE.MeshBasicMaterial({
             color: 0xffffff,
+            side: THREE.DoubleSide,
+            depthTest: true,
+            depthWrite: true,
             toneMapped: false
           })
         );
@@ -900,15 +905,16 @@ export default function startGallery() {
           new THREE.PlaneGeometry(1, 1),
           new THREE.MeshBasicMaterial({
             color: 0xffffff,
-            transparent: false,
-            depthWrite: false,
+            side: THREE.DoubleSide,
+            depthTest: true,
+            depthWrite: true,
             toneMapped: false
           })
         );
 
         shadow.position.z = depth;
-        backing.position.z = depth + .006;
-        im.position.z = depth + .018;
+        backing.position.z = depth + .001;
+        im.position.z = depth + .002;
 
         shadow.visible = false;
         backing.visible = false;
@@ -1058,13 +1064,29 @@ export default function startGallery() {
         it.active = true;
         it.has = true;
         it.settled = false;
-        it.order = Date.now() + Math.random();
+        // Newest photo gets the highest stacking order
+        it.order = ++ledStackOrder;
+
+        // Keep every photo close to the TV screen
+        it.depth = .14 + it.order * .0001;
+
+        it.shadow.position.z = it.depth;
+        it.backing.position.z = it.depth + .001;
+        it.im.position.z = it.depth + .002;
 
         // Position all three layers together
+        it.shadow.position.x = it.x + .045;
+        it.shadow.position.y = it.y - .045;
+
+        it.backing.position.x = it.x;
+        it.backing.position.y = it.y;
+
+        it.im.position.x = it.x;
+        it.im.position.y = it.y;
+
         for (const mesh of [it.shadow, it.backing, it.im]) {
-          mesh.position.x = it.x;
-          mesh.position.y = it.y;
-          mesh.visible = true;
+          mesh.rotation.z = rotation;
+          mesh.visible = inside;
         }
 
         // Slight shadow offset for a raised-paper appearance
