@@ -1430,7 +1430,9 @@ export default function startGallery() {
       x.textBaseline = 'middle';
 
       const maxWidth = 290;
-      const words = String(text).split(' ');
+      const paddingX = 14;
+      const paddingY = 9;
+      const words = String(text).split(/\s+/);
       const lines = [];
       let line = '';
 
@@ -1449,7 +1451,14 @@ export default function startGallery() {
 
       const visible = lines.slice(0, 2);
       const lineHeight = 22;
-      const boxHeight = visible.length * lineHeight + 14;
+      const boxHeight = visible.length * lineHeight + paddingY * 2;
+
+      const textWidth = Math.max(
+        ...visible.map(line => x.measureText(line).width)
+      );
+
+      const boxWidth = Math.min(310, textWidth + paddingX * 2);
+      const left = (320 - boxWidth) / 2;
       const top = (64 - boxHeight) / 2;
 
       x.fillStyle = u.chatText
@@ -1459,7 +1468,7 @@ export default function startGallery() {
           : 'rgba(20,20,22,.75)';
 
       x.beginPath();
-      x.roundRect(160 - 155, top, 310, boxHeight, 9);
+      x.roundRect(left, top, boxWidth, boxHeight, 9);
       x.fill();
 
       if (st === 2 && !u.chatText) {
@@ -1473,9 +1482,9 @@ export default function startGallery() {
       visible.forEach((line, i) => {
         x.fillText(
           line,
-          160,
-          top + 7 + i * lineHeight + lineHeight / 2,
-          maxWidth
+          left + paddingX + (boxWidth - paddingX * 2) / 2,
+          top + paddingY + i * lineHeight + lineHeight / 2,
+          boxWidth - paddingX * 2
         );
       });
 
