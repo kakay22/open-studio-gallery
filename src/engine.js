@@ -1852,6 +1852,7 @@ export default function startGallery() {
       for (const [k, a] of avatars) if (!seen.has(k)) { scene.remove(a.g); avatars.delete(k) }
       syncRtc();
       $('count').textContent = tot ? (LOW ? `${n + 1} here` : `${n + 1} here · ${tot + 1} online`) : 'Just you';
+      $('count').style.color = 'black';
       renderVisitorList();
     }
     function smoothAvatars(dt) {
