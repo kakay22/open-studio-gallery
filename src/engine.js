@@ -46,7 +46,7 @@ export default function startGallery() {
     for (let i = 0; i < 8; i++) { fx.fillStyle = `hsl(32,${28 + i % 3 * 4}%,${52 + i % 4 * 3}%)`; fx.fillRect(0, i * 128, 1024, 128); fx.fillStyle = '#0003'; fx.fillRect(0, i * 128, 1024, 3) }
     const ft = new THREE.CanvasTexture(fc); ft.wrapS = ft.wrapT = THREE.RepeatWrapping; ft.repeat.set(.25, .25); ft.encoding = THREE.sRGBEncoding; ft.anisotropy = LOW ? 4 : 8;
     const floorShape = new THREE.Shape(); floorShape.moveTo(-W / 2, -D / 2); floorShape.lineTo(W / 2, -D / 2); floorShape.lineTo(W / 2, D / 2); floorShape.lineTo(-W / 2, D / 2); floorShape.closePath();
-    const pitHole = new THREE.Path(); pitHole.moveTo(-5.6, -10.5); pitHole.lineTo(-.9, -10.5); pitHole.lineTo(-.9, -8.3); pitHole.lineTo(-5.6, -8.3); pitHole.closePath(); floorShape.holes.push(pitHole);
+    const pitHole = new THREE.Path(); pitHole.moveTo(-6.56, -10.4); pitHole.lineTo(-.9, -10.4); pitHole.lineTo(-.9, -8.4); pitHole.lineTo(-6.56, -8.4); pitHole.closePath(); floorShape.holes.push(pitHole);
     const floorGeo = new THREE.ShapeGeometry(floorShape); floorGeo.type = 'PlaneGeometry';   // keeps the floor from casting shadows
     const floor = new THREE.Mesh(floorGeo, new THREE.MeshStandardMaterial({ map: ft, roughness: .7 })); floor.rotation.x = -Math.PI / 2; scene.add(floor);
     const wallM = new THREE.MeshStandardMaterial({ color: 0xcfc8bb, roughness: 0.9 });
@@ -440,7 +440,7 @@ export default function startGallery() {
     }
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) plant(sx * 17.3, sz * 10.3, 1.3);
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) plant(sx * 8.1, sz * 3.3, .9);
-    plant(-6.4, 8.6, 1); plant(6.4, 8.6, 1);
+
 
     // Rugs
     function rug(x, z, w, d, inner, border) {
@@ -512,8 +512,9 @@ export default function startGallery() {
     const deskMat = new THREE.MeshLambertMaterial({ color: 0x57483a });
     const deskTopMat = new THREE.MeshLambertMaterial({ color: 0xe8e3da });
     const darkMat = new THREE.MeshLambertMaterial({ color: 0x1d1a17 });
-    const RX = -4.5, RZ = 7.2;
-    const RFACE = Math.atan2(0 - RX, 9.4 - RZ) + Math.PI, MX = RX - Math.sin(RFACE) * .95, MZ = RZ - Math.cos(RFACE) * .95;
+    const RX = -4.5, RZ = 5.8;
+    const RFACE = Math.PI, MX = RX - Math.sin(RFACE) * .95, MZ = RZ - Math.cos(RFACE) * .95;
+    let monTick = () => { };
     {
       const g = new THREE.Group(); g.position.set(RX, 0, RZ); g.rotation.y = RFACE;
       const body = new THREE.Mesh(new THREE.BoxGeometry(2.6, 1.05, .8), deskMat); body.position.y = .525;
@@ -521,8 +522,36 @@ export default function startGallery() {
       const trim = new THREE.Mesh(new THREE.BoxGeometry(2.6, .06, .02), goldMat); trim.position.set(0, .9, .41);
       const lbl = new THREE.Mesh(new THREE.PlaneGeometry(1.4, .35), plate('RECEPTION', 256, 64, 34)); lbl.position.set(0, .5, .41);
       const bell = new THREE.Mesh(new THREE.SphereGeometry(.07, 12, 8), goldMat); bell.position.set(.8, 1.19, .1);
-      const mon = new THREE.Mesh(new THREE.BoxGeometry(.5, .32, .04), darkMat); mon.position.set(-.7, 1.38, -.1);
-      const stand = new THREE.Mesh(new THREE.BoxGeometry(.06, .2, .06), darkMat); stand.position.set(-.7, 1.2, -.1);
+      const mon = new THREE.Mesh(new THREE.BoxGeometry(.5, .32, .04), darkMat); mon.position.set(-.3, 1.38, -.05);
+      const stand = new THREE.Mesh(new THREE.BoxGeometry(.06, .2, .06), darkMat); stand.position.set(-.3, 1.2, -.05);
+      const mbase = new THREE.Mesh(new THREE.BoxGeometry(.24, .015, .16), darkMat); mbase.position.set(-.3, 1.125, -.05); g.add(mbase);
+      // live screen
+      const mc = document.createElement('canvas'); mc.width = 256; mc.height = 160; const mx = mc.getContext('2d');
+      const mtex = new THREE.CanvasTexture(mc); mtex.encoding = THREE.sRGBEncoding;
+      const screen = new THREE.Mesh(new THREE.PlaneGeometry(.46, .28), new THREE.MeshBasicMaterial({ map: mtex })); screen.position.set(-.3, 1.38, -.073); screen.rotation.y = Math.PI; g.add(screen);
+      let mT = 0, mN = 0;
+      monTick = dt => {
+        mT += dt; if (mT < .4) return; mT = 0; mN++;
+        mx.fillStyle = '#0e2433'; mx.fillRect(0, 0, 256, 160);
+        mx.fillStyle = '#1f6fb2'; mx.fillRect(0, 0, 256, 18);
+        mx.fillStyle = '#fff'; mx.font = '11px system-ui,sans-serif'; mx.textAlign = 'left'; mx.fillText('Gallery Desk', 6, 13);
+        mx.textAlign = 'right'; mx.fillText(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), 250, 13);
+        for (let i = 0; i < 8; i++) { const wv = 40 + ((i * 53 + Math.floor(mN / 6) * 37) % 150); mx.fillStyle = i % 3 ? '#4fa3e0' : '#7fd1a3'; mx.fillRect(10, 30 + i * 14, wv, 6) }
+        if (mN % 2) { mx.fillStyle = '#fff'; mx.fillRect(10, 146, 6, 10) }
+        mtex.needsUpdate = true;
+      };
+      // keyboard + mouse
+      const kc = document.createElement('canvas'); kc.width = 128; kc.height = 40; const kx = kc.getContext('2d');
+      kx.fillStyle = '#1b1b1d'; kx.fillRect(0, 0, 128, 40); kx.fillStyle = '#55555c';
+      for (let r = 0; r < 4; r++) for (let c = 0; c < 14; c++) kx.fillRect(3 + c * 8.8, 3 + r * 8.8, 7, 7);
+      const kb = new THREE.Mesh(new THREE.BoxGeometry(.46, .02, .15), [darkMat, darkMat, new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(kc) }), darkMat, darkMat, darkMat]); kb.position.set(-.3, 1.13, -.3); g.add(kb);
+      const ms = new THREE.Mesh(new THREE.BoxGeometry(.06, .03, .1), darkMat); ms.position.set(.12, 1.135, -.3); g.add(ms);
+      // office chair
+      const chair = new THREE.Group(); chair.position.set(0, 0, -.95);
+      const cm = (w, h, d, x, y, z) => { const o = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), darkMat); o.position.set(x, y, z); chair.add(o); return o };
+      cm(.52, .08, .5, 0, .44, 0); cm(.5, .55, .07, 0, .78, -.25); cm(.05, .34, .05, 0, .23, 0);
+      for (let i = 0; i < 5; i++) { const a = i * Math.PI * 2 / 5, l = cm(.34, .03, .05, Math.cos(a) * .17, .06, Math.sin(a) * .17); l.rotation.y = -a }
+      g.add(chair);
       g.add(body, top, trim, lbl, bell, mon, stand); scene.add(g);
     }
     solidWalls.push({ x1: RX - Math.cos(RFACE), z1: RZ + Math.sin(RFACE), x2: RX + Math.cos(RFACE), z2: RZ - Math.sin(RFACE), th: .55 });
@@ -628,26 +657,66 @@ export default function startGallery() {
     }
     dirSign(0, 3, 0, 6.4); dirSign(0, -4, 0, 6.4); dirSign(-10.5, 0, Math.PI / 2, 5.6); dirSign(10.5, 0, Math.PI / 2, 5.6);
     // ---- stairs: right flight = UP, left flight = DOWN (each floor is a room)
-    const SX0 = .9, SRUN = .4, SRISE = .3, SN = 8, SZ = 9.4, SW = 1.1, TOP = SN * SRISE, LAND = 1.5, SXE = SX0 + SRUN * SN + LAND;
+    const SX0 = 1.5, SRUN = .52, SRISE = .3, SN = 8, SZ = 9.4, SW = 1.0, TOP = SN * SRISE, LAND = 1.5, SXE = SX0 + SRUN * SN + LAND;
     const stepMat = new THREE.MeshLambertMaterial({ color: 0xb9b2a4 }), landMat = new THREE.MeshLambertMaterial({ color: 0xe8e3da });
     const portalMat = new THREE.MeshBasicMaterial({ color: 0xfff1d6, transparent: true, opacity: .45, side: THREE.DoubleSide, depthWrite: false });
     const ANG = Math.atan2(SRISE, SRUN), RLEN = SN * Math.hypot(SRUN, SRISE);
-    for (const dir of [1]) {
-      for (let i = 0; i < SN; i++) {
-        const m = new THREE.Mesh(new THREE.BoxGeometry(SRUN, (i + 1) * SRISE, SW * 2), stepMat);
-        m.position.set(dir * (SX0 + SRUN * (i + .5)), (i + 1) * SRISE / 2, SZ); scene.add(m);
+    const postGeo = new THREE.BoxGeometry(.06, .9, .06);
+    // ---- escalator materials
+    const steelEnv = (() => { try { const c = document.createElement('canvas'); c.width = 256; c.height = 128; const x = c.getContext('2d'); const g = x.createLinearGradient(0, 0, 0, 128); g.addColorStop(0, '#f6f2ea'); g.addColorStop(.5, '#a39d93'); g.addColorStop(1, '#3a342d'); x.fillStyle = g; x.fillRect(0, 0, 256, 128); x.fillStyle = '#fff'; x.fillRect(24, 18, 70, 12); x.fillRect(150, 24, 90, 10); const t = new THREE.CanvasTexture(c); t.mapping = THREE.EquirectangularReflectionMapping; t.encoding = THREE.sRGBEncoding; const pm = new THREE.PMREMGenerator(renderer); const r = pm.fromEquirectangular(t).texture; pm.dispose(); return r } catch (e) { return null } })();
+    const steelM = new THREE.MeshStandardMaterial({ color: 0xd8dce0, metalness: 1, roughness: .25, envMap: steelEnv, envMapIntensity: 1.2 });
+    const steelD = new THREE.MeshStandardMaterial({ color: 0x9a9fa5, metalness: 1, roughness: .38, envMap: steelEnv });
+    const rubberM = new THREE.MeshStandardMaterial({ color: 0x0a0a0b, roughness: .5, metalness: .1 });
+    const tcv = document.createElement('canvas'); tcv.width = 128; tcv.height = 64;
+    { const x = tcv.getContext('2d'); x.fillStyle = '#26282b'; x.fillRect(0, 0, 128, 64); x.fillStyle = '#4b4f55'; for (let i = 2; i < 62; i += 4) x.fillRect(0, i, 128, 2); x.fillStyle = '#f2c500'; x.fillRect(0, 0, 16, 64); x.fillRect(0, 0, 128, 3); x.fillRect(0, 61, 128, 3); }
+    const treadTex = new THREE.CanvasTexture(tcv); treadTex.encoding = THREE.sRGBEncoding; treadTex.anisotropy = 4;
+    const treadMats = [steelD, steelD, new THREE.MeshStandardMaterial({ map: treadTex, roughness: .55, metalness: .3 }), steelD, steelD, steelD];
+    const ccv = document.createElement('canvas'); ccv.width = 128; ccv.height = 64;
+    { const x = ccv.getContext('2d'); x.fillStyle = '#8f9499'; x.fillRect(0, 0, 128, 64); x.fillStyle = '#5d6166'; for (let i = 14; i < 114; i += 5) x.fillRect(i, 0, 2, 64); x.fillStyle = '#f2c500'; x.fillRect(0, 0, 12, 64); x.fillRect(116, 0, 12, 64); }
+    const combTex = new THREE.CanvasTexture(ccv); combTex.encoding = THREE.sRGBEncoding;
+    const combMats = [steelD, steelD, new THREE.MeshStandardMaterial({ map: combTex, roughness: .5, metalness: .4 }), steelD, steelD, steelD];
+    const treadGeo = new THREE.BoxGeometry(.346, .035, .98), riserGeo = new THREE.BoxGeometry(.02, .2, .98), combGeo = new THREE.BoxGeometry(.6, .04, 1.0);
+    const escs = []; let escT = 0;
+    function buildEscalator(ox, oy, up) {
+      const RUNX = SRUN * SN, E = new THREE.Group(); E.position.set(ox, oy, SZ); scene.add(E);
+      const inc = new THREE.Group(); inc.rotation.z = ANG; E.add(inc);
+      const truss = new THREE.Mesh(new THREE.BoxGeometry(RLEN + .1, .5, 1.3), steelD); truss.position.set(RLEN / 2, -.5, 0); inc.add(truss);
+      for (const sz of [-1, 1]) { const sk = new THREE.Mesh(new THREE.BoxGeometry(RLEN, .12, .03), rubberM); sk.position.set(RLEN / 2, .02, sz * .51); inc.add(sk) }
+      const st = [], n = Math.floor(RLEN / .4);
+      for (let i = 0; i < n; i++) {
+        const g = new THREE.Group(); g.rotation.z = -ANG;
+        const tr = new THREE.Mesh(treadGeo, treadMats); tr.position.set(0, -.0175, 0);
+        const ri = new THREE.Mesh(riserGeo, steelD); ri.position.set(-.163, -.1, 0);
+        g.add(tr, ri); inc.add(g); st.push(g);
       }
+      escs.push({ st, up });
+      // stainless side panels (balustrades)
+      const H1 = 1.0, sh = new THREE.Shape();
+      sh.moveTo(-.55, -.3); sh.lineTo(-.55, H1); sh.lineTo(0, H1); sh.lineTo(RUNX, TOP + H1); sh.lineTo(RUNX + .55, TOP + H1); sh.lineTo(RUNX + .55, TOP - .3); sh.lineTo(RUNX, TOP - .3); sh.lineTo(0, -.3); sh.closePath();
+      const pg = new THREE.ExtrudeGeometry(sh, { depth: .05, bevelEnabled: false });
+      const hp = [[-.55, H1 + .04], [-.2, H1 + .04], [.17, H1 + .14], [RUNX / 2, TOP / 2 + H1 + .04], [RUNX - .17, TOP + H1 - .06], [RUNX + .2, TOP + H1 + .04], [RUNX + .55, TOP + H1 + .04]].map(p => new THREE.Vector3(p[0], p[1], 0));
+      const hg = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(hp, false, 'centripetal'), 48, .04, 8, false);
+      for (const sz of [-1, 1]) {
+        const pm = new THREE.Mesh(pg, steelM); pm.position.z = sz * .56 - .025; E.add(pm);
+        const hm = new THREE.Mesh(hg, rubberM); hm.position.z = sz * .56; E.add(hm);
+      }
+      // comb plates with safety markings
+      const lp = new THREE.Mesh(combGeo, combMats); lp.position.set(-.2, .02, 0); E.add(lp);
+      if (up === false) { const upl = new THREE.Mesh(combGeo, combMats); upl.position.set(RUNX + .2, TOP + .02, 0); E.add(upl) }
+    }
+    function escTick(dt) {
+      escT += dt * .635;
+      for (const e of escs) e.st.forEach((g, i) => { let a = (i * .4 + (e.up ? escT : -escT)) % RLEN; if (a < 0) a += RLEN; g.position.set(a, 0, 0); g.visible = a > .15 && a < RLEN - .15 });
+    }
+    for (const dir of [1]) {
+      buildEscalator(SX0, 0, true);
+
       // landing = the floor above
       const lb = new THREE.Mesh(new THREE.BoxGeometry(LAND, TOP, SW * 2), stepMat); lb.position.set(dir * (SX0 + SRUN * SN + LAND / 2), TOP / 2, SZ); scene.add(lb);
       const ls = new THREE.Mesh(new THREE.BoxGeometry(LAND + .1, .08, SW * 2 + .1), landMat); ls.position.set(dir * (SX0 + SRUN * SN + LAND / 2), TOP + .04, SZ); scene.add(ls);
-      // railings (sloped along the flight, flat along the landing)
-      for (const sz of [-1, 1]) {
-        const r = new THREE.Mesh(new THREE.BoxGeometry(RLEN, .06, .06), goldMat);
-        r.position.set(dir * (SX0 + SRUN * SN / 2), (SRISE + TOP) / 2 + .9, SZ + sz * SW); r.rotation.z = dir * ANG; scene.add(r);
-        const fl = new THREE.Mesh(new THREE.BoxGeometry(LAND, .06, .06), goldMat);
-        fl.position.set(dir * (SX0 + SRUN * SN + LAND / 2), TOP + .95, SZ + sz * SW); scene.add(fl);
-      }
-      // glowing doorway at the end of the landing
+      // old rails removed
+      // old gold rails removed
+
       // up passage open (no glowing panel)
       const ps = new THREE.Mesh(new THREE.PlaneGeometry(2.2, .5), plate(dir > 0 ? '▲ NEXT FLOOR' : '▼ LOWER FLOOR', 384, 96, 40));
       ps.position.set(dir * (SXE - .08), TOP + 2.7, SZ); ps.rotation.y = -dir * Math.PI / 2; scene.add(ps);
@@ -655,19 +724,19 @@ export default function startGallery() {
       const s = new THREE.Mesh(new THREE.PlaneGeometry(2.2, .6), plate(dir > 0 ? '▲ UPSTAIRS' : '▼ DOWNSTAIRS', 384, 96, 40));
       s.position.set(dir * 2.4, 4.4, 10.93); s.rotation.y = Math.PI; scene.add(s);
       // collision: front rail and the end of the landing (open from the hall side only)
-      solidWalls.push({ x1: 1.3, z1: SZ - SW, x2: 7, z2: SZ - SW, th: .1 });   // side rail: stairs are entered from the lobby end only
+      solidWalls.push({ x1: SX0 - .55, z1: SZ - SW, x2: SXE, z2: SZ - SW, th: .1 }, { x1: SX0 - .55, z1: SZ + SW, x2: SXE, z2: SZ + SW, th: .1 });   // side rail: stairs are entered from the lobby end only
     }
     // ---- DOWN stairs: a pit cut into the floor, steps descend as you walk left
     {
-      for (let i = 0; i < SN - 1; i++) {
-        const h = TOP - (i + 1) * SRISE, m = new THREE.Mesh(new THREE.BoxGeometry(SRUN, h, SW * 2), stepMat);
-        m.position.set(-(SX0 + SRUN * (i + .5)), -TOP + h / 2, SZ); scene.add(m);
-      }
+      buildEscalator(-(SX0 + SRUN * SN), -TOP, false);
+      // old pit steps removed
+
       const pf = new THREE.Mesh(new THREE.BoxGeometry(SXE - SX0, .1, SW * 2), landMat); pf.position.set(-(SX0 + SXE) / 2, -TOP - .05, SZ); scene.add(pf);
       for (const sz of [-1, 1]) {
         const w = new THREE.Mesh(new THREE.BoxGeometry(SXE - SX0, TOP, .1), wallM); w.position.set(-(SX0 + SXE) / 2, -TOP / 2, SZ + sz * SW); scene.add(w);
-        const rl = new THREE.Mesh(new THREE.BoxGeometry(SXE - SX0, .06, .06), goldMat); rl.position.set(-(SX0 + SXE) / 2, .95, SZ + sz * SW); scene.add(rl);
-        solidWalls.push({ x1: -SX0, z1: SZ + sz * SW, x2: -SXE, z2: SZ + sz * SW, th: .1 });
+        // pit rail removed
+        // pit posts removed
+        solidWalls.push({ x1: -SX0 + .55, z1: SZ + sz * SW, x2: -SXE, z2: SZ + sz * SW, th: .1 });
       }
 
       const ps = new THREE.Mesh(new THREE.PlaneGeometry(2.2, .5), plate('▼ LOWER FLOOR', 384, 96, 40)); ps.position.set(-(SXE - .1), -TOP + 2.7, SZ); ps.rotation.y = Math.PI / 2; scene.add(ps);
@@ -678,12 +747,12 @@ export default function startGallery() {
       const u = Math.abs(x) - SX0; if (u < 0 || u > SRUN * SN + LAND) return 0;
       const s = x < 0 ? -1 : 1;
       if (u >= SRUN * SN) return s * TOP;
-      return s * (Math.floor(u / SRUN) + 1) * SRISE;
+      return s * u * SRISE / SRUN;
     };
     let sy = 0;
     async function climb(dir) {
       const n = myRoom + dir;
-      if (n < 0) { addChat('Gallery', 'You are on the ground floor.'); px = dir * 2.5; return }
+      if (n < 0) { addChat('Gallery', 'You are on the ground floor.'); px = dir * .4; return }
       const isNew = n >= rooms;
       if (isNew) { minRooms = Math.max(minRooms, n + 1); if (room) room.emit('react', { e: 'floor', n }).catch(() => { }) }
       evBusy = true; sfxClick(); fade.style.opacity = '1'; await wait(450);
@@ -694,7 +763,7 @@ export default function startGallery() {
     }
     function stairTick() {
       if (!started || evBusy || sitting || Math.abs(pz - SZ) > SW || Math.abs(sy) < TOP - .6) return;
-      if (Math.abs(px) > SX0 + SRUN * (SN - 1) + .2) climb(px > 0 ? 1 : -1);   // on the last step
+      if (Math.abs(px) > SX0 + SRUN * SN - .35) climb(px > 0 ? 1 : -1);   // on the last step
     }
 
     rods(0, 7.5, 0, 5.0, 6.0, 1.5);   // hangs the lobby sign
@@ -760,6 +829,343 @@ export default function startGallery() {
       g.add(bez, scr); scene.add(g); tvs.push({ m: scr, w, h, t: 99, i: tvs.length * 3, b: 1, loading: false, tex: null });
     }
     tv(-6.74, -6, Math.PI / 2); tv(6.74, -6, -Math.PI / 2); tv(-6.74, 6, Math.PI / 2); tv(6.74, 3.9, -Math.PI / 2, 2.4, 2.6);
+    const leds = [], ledCache = new Map(); let ledIdx = 0; const LEDK = LOW ? 9 : 14;
+    function ledTex(url, cb) {
+      let p = ledCache.get(url);
+      if (!p) {
+        p = new Promise(res => {
+          const im = new Image(); im.crossOrigin = 'anonymous';
+          im.onload = () => { const s = Math.min(1, 384 / Math.max(im.width, im.height)), cv = document.createElement('canvas'); cv.width = Math.max(1, Math.round(im.width * s)); cv.height = Math.max(1, Math.round(im.height * s)); cv.getContext('2d').drawImage(im, 0, 0, cv.width, cv.height); const t = new THREE.CanvasTexture(cv); t.encoding = THREE.sRGBEncoding; res({ t, ar: cv.width / cv.height }) };
+          im.onerror = () => res(null); im.src = url;
+        });
+        ledCache.set(url, p);
+      }
+      p.then(cb);
+    }
+    function ledWall(x, z, ry, w = 5.6, h = 3.15) {
+      const g = new THREE.Group();
+      g.position.set(x, 3.2, z);
+      g.rotation.y = ry;
+
+      const frame = new THREE.Mesh(
+        new THREE.BoxGeometry(w + .2, h + .2, .12),
+        tvFrameMat
+      );
+      frame.position.z = .06;
+
+      const bg = new THREE.Mesh(
+        new THREE.PlaneGeometry(w, h),
+        new THREE.MeshBasicMaterial({ color: 0x000000 })
+      );
+      bg.position.z = .125;
+
+      g.add(frame, bg);
+      scene.add(g);
+
+      const v = {
+        w,
+        h,
+        items: [],
+        cursor: 0,
+        spawnTimer: .3 + Math.random() * .8,
+        spawnInterval: 1.2
+      };
+
+      for (let k = 0; k < LEDK; k++) {
+        const depth = .15 + k * .025;
+
+        // Soft shadow underneath the printed photo
+        const shadow = new THREE.Mesh(
+          new THREE.PlaneGeometry(1, 1),
+          new THREE.MeshBasicMaterial({
+            color: 0x000000,
+            transparent: true,
+            opacity: .28,
+            depthWrite: false,
+            toneMapped: false
+          })
+        );
+
+        // White paper backing / photo border
+        const backing = new THREE.Mesh(
+          new THREE.BoxGeometry(1, 1, .018),
+          new THREE.MeshBasicMaterial({
+            color: 0xffffff,
+            toneMapped: false
+          })
+        );
+
+        // Actual photograph
+        const im = new THREE.Mesh(
+          new THREE.PlaneGeometry(1, 1),
+          new THREE.MeshBasicMaterial({
+            color: 0xffffff,
+            transparent: false,
+            depthWrite: false,
+            toneMapped: false
+          })
+        );
+
+        shadow.position.z = depth;
+        backing.position.z = depth + .006;
+        im.position.z = depth + .018;
+
+        shadow.visible = false;
+        backing.visible = false;
+        im.visible = false;
+
+        g.add(shadow, backing, im);
+
+        v.items.push({
+          im,
+          backing,
+          shadow,
+          depth,
+
+          x: 0,
+          y: 0,
+
+          startX: 0,
+          startY: 0,
+          targetX: 0,
+          targetY: 0,
+
+          iw: 1,
+          ih: 1,
+
+          elapsed: 0,
+          duration: 1,
+
+          startRotation: 0,
+          endRotation: 0,
+
+          loading: false,
+          active: false,
+          has: false,
+          settled: false,
+          order: 0
+        });
+      }
+
+      leds.push(v);
+    }
+    ledWall(-7.27, -5.5, -Math.PI / 2); ledWall(-7.27, 5.5, -Math.PI / 2);
+    ledWall(7.27, -5.5, Math.PI / 2); ledWall(7.27, 5.5, Math.PI / 2);
+    function ledSet(v, it) {
+      if (!paintings.length || it.loading) return;
+
+      it.loading = true;
+      it.active = false;
+      it.settled = false;
+      it.has = false;
+
+      it.im.visible = false;
+      it.backing.visible = false;
+      it.shadow.visible = false;
+
+      const p = paintings[(ledIdx++) % paintings.length];
+
+      ledTex(p.url, r => {
+        it.loading = false;
+
+        if (!r) return;
+
+        it.im.material.map = r.t;
+        it.im.material.needsUpdate = true;
+
+        // Random printed photograph size
+        it.ih = v.h * (.24 + Math.random() * .15);
+        it.iw = it.ih * r.ar;
+
+        if (it.iw > v.w * .38) {
+          it.iw = v.w * .38;
+          it.ih = it.iw / r.ar;
+        }
+
+        // Image size
+        it.im.scale.set(it.iw, it.ih, 1);
+
+        // Thin printed-photo border
+        const border = .018;
+
+        it.backing.scale.set(
+          it.iw + border * 2,
+          it.ih + border * 2,
+          1
+        );
+
+        it.shadow.scale.set(
+          it.iw + border * 2 + .055,
+          it.ih + border * 2 + .055,
+          1
+        );
+
+        // Landing rotation
+        it.startRotation = (Math.random() - .5) * 1.8;
+        it.endRotation = (Math.random() - .5) * .20;
+
+        // Calculate safe landing area, including rotated photo corners
+        const c = Math.abs(Math.cos(it.endRotation));
+        const s = Math.abs(Math.sin(it.endRotation));
+
+        const halfW = (
+          it.iw * c + it.ih * s
+        ) / 2 + border;
+
+        const halfH = (
+          it.iw * s + it.ih * c
+        ) / 2 + border;
+
+        const safeX = Math.max(0, v.w / 2 - halfW - .06);
+        const safeY = Math.max(0, v.h / 2 - halfH - .06);
+
+        // Final landing position
+        it.targetX = (Math.random() * 2 - 1) * safeX;
+        it.targetY = (Math.random() * 2 - 1) * safeY;
+
+        // Choose an edge outside the TV screen
+        const side = Math.floor(Math.random() * 4);
+        const outside = .35;
+
+        if (side === 0) {
+          // Left edge
+          it.startX = -(v.w / 2 + it.iw / 2 + outside);
+          it.startY = (Math.random() * 2 - 1) * safeY;
+        } else if (side === 1) {
+          // Right edge
+          it.startX = v.w / 2 + it.iw / 2 + outside;
+          it.startY = (Math.random() * 2 - 1) * safeY;
+        } else if (side === 2) {
+          // Top edge
+          it.startX = (Math.random() * 2 - 1) * safeX;
+          it.startY = v.h / 2 + it.ih / 2 + outside;
+        } else {
+          // Bottom edge
+          it.startX = (Math.random() * 2 - 1) * safeX;
+          it.startY = -(v.h / 2 + it.ih / 2 + outside);
+        }
+
+        it.x = it.startX;
+        it.y = it.startY;
+
+        it.elapsed = 0;
+        it.duration = .85 + Math.random() * .3;
+
+        it.im.rotation.z = it.startRotation;
+        it.backing.rotation.z = it.startRotation;
+        it.shadow.rotation.z = it.startRotation;
+
+        it.active = true;
+        it.has = true;
+        it.settled = false;
+        it.order = Date.now() + Math.random();
+
+        // Position all three layers together
+        for (const mesh of [it.shadow, it.backing, it.im]) {
+          mesh.position.x = it.x;
+          mesh.position.y = it.y;
+          mesh.visible = true;
+        }
+
+        // Slight shadow offset for a raised-paper appearance
+        it.shadow.position.x += .045;
+        it.shadow.position.y -= .045;
+      });
+    }
+    function ledTick(dt) {
+      dt = Math.min(dt, .04);
+
+      for (const v of leds) {
+        v.spawnTimer -= dt;
+
+        if (v.spawnTimer <= 0 && paintings.length) {
+          v.spawnTimer = v.spawnInterval;
+
+          const it = v.items[v.cursor];
+          v.cursor = (v.cursor + 1) % v.items.length;
+
+          if (!it.loading) {
+            ledSet(v, it);
+          }
+        }
+
+        for (const it of v.items) {
+          if (!it.active || !it.has || it.loading) continue;
+
+          it.elapsed += dt;
+
+          const raw = Math.min(1, it.elapsed / it.duration);
+
+          // Smooth flying motion
+          const t = raw * raw * (3 - 2 * raw);
+
+          it.x = it.startX + (it.targetX - it.startX) * t;
+          it.y = it.startY + (it.targetY - it.startY) * t;
+
+          // Tossing arc
+          const arc = Math.sin(raw * Math.PI) * .08;
+
+          const dx = it.targetX - it.startX;
+          const dy = it.targetY - it.startY;
+          const distance = Math.max(.001, Math.sqrt(dx * dx + dy * dy));
+
+          it.x += (-dy / distance) * arc;
+          it.y += (dx / distance) * arc;
+
+          const spin = Math.sin(raw * Math.PI) * .22;
+
+          const rotation =
+            it.startRotation +
+            (it.endRotation - it.startRotation) * t +
+            spin;
+
+          // Keep the photo completely inside the TV while entering.
+          // Hide it until its entire rotated rectangle has crossed the edge.
+          const c = Math.abs(Math.cos(rotation));
+          const s = Math.abs(Math.sin(rotation));
+
+          const halfW = (it.iw * c + it.ih * s) / 2 + .025;
+          const halfH = (it.iw * s + it.ih * c) / 2 + .025;
+
+          const inside =
+            Math.abs(it.x) + halfW <= v.w / 2 &&
+            Math.abs(it.y) + halfH <= v.h / 2;
+
+          for (const mesh of [it.shadow, it.backing, it.im]) {
+            mesh.position.x = it.x;
+            mesh.position.y = it.y;
+            mesh.rotation.z = rotation;
+            mesh.visible = inside;
+          }
+
+          // Maintain subtle shadow offset
+          it.shadow.position.x += 0;
+          it.shadow.position.y += 0;
+
+          if (raw >= 1) {
+            it.x = it.targetX;
+            it.y = it.targetY;
+
+            it.im.position.x = it.x;
+            it.im.position.y = it.y;
+
+            it.backing.position.x = it.x;
+            it.backing.position.y = it.y;
+
+            it.shadow.position.x = it.x + .045;
+            it.shadow.position.y = it.y - .045;
+
+            it.im.rotation.z = it.endRotation;
+            it.backing.rotation.z = it.endRotation;
+            it.shadow.rotation.z = it.endRotation;
+
+            it.active = false;
+            it.settled = true;
+          }
+        }
+      }
+    }
+
     function tvTick(dt) {
       let list = null;
       for (const v of tvs) {
@@ -960,6 +1366,7 @@ export default function startGallery() {
         pz = nextZ;
       }
 
+      { const cu = Math.abs(px) - SX0; if (Math.abs(pz - SZ) < SW && cu > 0 && cu < SRUN * SN) { const cx = px + (px < 0 ? -1 : 1) * .55 * dt; if (!collidesWithWall(cx, pz)) px = cx } }
       // Keep the player inside the outer room.
       px = Math.max(-W / 2 + .9, Math.min(W / 2 - .9, px));
       pz = Math.max(-D / 2 + .9, Math.min(D / 2 - .9, pz));
@@ -1170,7 +1577,7 @@ export default function startGallery() {
     }
     const hueOf = s => { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) % 360; return h };
 
-    const rec = { g: makeAvatar('Mira', 330, 'f', 11, { sk: 1, hr: 1, hu: 330 }), k: 0, ph: 0, tp: 0, em: null, wt: 0, greeted: false };
+    const rec = { g: makeAvatar('Mira', 330, 'f', 11, { sk: 1, hr: 1, hu: 330 }), k: 0, ph: 0, tp: 0, em: 'sit', wt: 0, greeted: false };
     rec.g.position.set(MX, 0, MZ); rec.g.rotation.y = RFACE + Math.PI;
     const recDist = () => Math.hypot(px - MX, pz - MZ);
 
@@ -1379,7 +1786,7 @@ export default function startGallery() {
         }
         {
           const ux = Math.abs(g.position.x) - SX0, sgn = g.position.x < 0 ? -1 : 1;
-          a.by = (Math.abs(g.position.z - SZ) > SW || ux < 0) ? 0 : sgn * Math.min(TOP, SRISE * (ux / SRUN + 1));
+          a.by = stairY(g.position.x, g.position.z);
         }
         animate(a, dt);
       }
@@ -1643,7 +2050,7 @@ export default function startGallery() {
     };
     async function loadPaintings() {
       try {
-        const r = await fetch(API + '/api/paintings');
+        const r = await fetch(API + '/api/paintings', { cache: 'no-store' });
         if (!r.ok) throw new Error(`Failed to load paintings (${r.status})`);
 
         const list = await r.json();
@@ -1703,7 +2110,7 @@ export default function startGallery() {
       ws.onerror = () => ws.close();
     }
     setInterval(() => { if (!document.hidden) loadPaintings() }, 20000);
-    document.addEventListener('visibilitychange', () => { if (!document.hidden) connect() });
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) { connect(); loadPaintings() } }); addEventListener('online', () => { connect(); loadPaintings() });
     room = roomS; db = dbS; assets = assetsS; local = false;
     db.collection('paintings').onSnapshot(s => { paintings = s.docs.map(x => ({ id: x.id, ...x.data() })); layout() });
     room.onPeers(applyPeers);
@@ -1759,6 +2166,7 @@ export default function startGallery() {
     const ICE = {
       iceServers: [
         { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] },
+        { urls: ['turn:openrelay.metered.ca:80', 'turn:openrelay.metered.ca:443', 'turn:openrelay.metered.ca:443?transport=tcp', 'turns:openrelay.metered.ca:443?transport=tcp'], username: 'openrelayproject', credential: 'openrelayproject' },
         ...(import.meta.env.VITE_TURN_URL ? [{ urls: import.meta.env.VITE_TURN_URL.split(','), username: import.meta.env.VITE_TURN_USER, credential: import.meta.env.VITE_TURN_PASS }] : [])
       ]
     };
@@ -1787,7 +2195,7 @@ export default function startGallery() {
       const pc = new RTCPeerConnection(ICE), v = { pc, sender: null, pending: [], remote: false, out: null }; pcs.set(id, v);
       pc.onicecandidate = e => { if (e.candidate) wsend({ t: 'rtc', to: id, data: { cand: e.candidate } }) };
       pc.ontrack = e => attachRemote(v, e.streams[0] || new MediaStream([e.track]));
-      pc.onconnectionstatechange = () => { if (['failed', 'closed'].includes(pc.connectionState)) closeCall(id) };
+      pc.onconnectionstatechange = () => { if (['failed', 'closed'].includes(pc.connectionState)) { closeCall(id); setTimeout(syncRtc, 1500) } };
       return v;
     }
     function useSender(v, tr) { tr.direction = 'sendrecv'; v.sender = tr.sender; if (micStream) tr.sender.replaceTrack(micStream.getAudioTracks()[0]).catch(() => { }) }
@@ -2033,7 +2441,7 @@ export default function startGallery() {
       requestAnimationFrame(loop); const dt = Math.min(.05, (t - last) / 1000); last = t;
       if (started) { step(dt); setPresence(false); look() } else { cam.position.set(0, EYE, 6); cam.rotation.set(0, Math.sin(t / 4000) * .5, 0) }
       for (const m of spinners) m.rotation.y += dt * .5;
-      elevTick(dt); stairTick(); guideTick(); smoothAvatars(dt); receptionTick(dt); tvTick(dt); tickFloaters(); voiceTick(); renderer.render(scene, cam)
+      elevTick(dt); stairTick(); guideTick(); smoothAvatars(dt); receptionTick(dt); monTick(dt); ledTick(dt); escTick(dt); tvTick(dt); tickFloaters(); voiceTick(); renderer.render(scene, cam)
     })(last);
 
   })();
