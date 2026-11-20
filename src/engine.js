@@ -1851,7 +1851,7 @@ export default function startGallery() {
       }
       for (const [k, a] of avatars) if (!seen.has(k)) { scene.remove(a.g); avatars.delete(k) }
       syncRtc();
-      $('count').textContent = tot ? (LOW ? `${n + 1} here` : `${n + 1} here · ${tot + 1} online`) : 'Just you';
+      $('count').textContent = tot ? (LOW ? `${n + 1} <span style="color: #007bff;">here</span>` : `${n + 1} <span style="color: #007bff;">here</span> · ${tot + 1} online`) : '<span style="color: #007bff;">You are alone</span>';
       $('count').style.color = 'black';
       renderVisitorList();
     }
