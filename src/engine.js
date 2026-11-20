@@ -1853,9 +1853,9 @@ export default function startGallery() {
       syncRtc();
       $('count').innerHTML = tot
         ? (LOW
-          ? `${n + 1} <span style="color: #007bff;">here</span>`
-          : `${n + 1} <span style="color: #007bff;">here</span> · ${tot + 1} online`)
-        : '<span style="color: #007bff;">You are alone</span>';
+          ? `${n + 1} <span style="color: black;">here</span>`
+          : `${n + 1} <span style="color: black;">here</span> · ${tot + 1} online`)
+        : '<span style="color: black;">You are alone</span>';
       $('count').style.color = 'black';
       renderVisitorList();
     }
