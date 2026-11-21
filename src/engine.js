@@ -13,15 +13,28 @@ export default function startGallery() {
     const SKc = ['#f1c9a5', '#d9a37c', '#b67b55', '#8a5a3c', '#5e3b27'], HRc = ['#2a1d15', '#5a3a22', '#b98a4e', '#1a1a1a', '#8b3a2b', '#9aa0a6'];
     function sw(id, arr, key, hue) { const el = $(id); arr.forEach((c, i) => { const b = document.createElement('i'), val = hue ? c : i; b.style.background = hue ? `hsl(${c},55%,48%)` : c; if (myLook[key] === val) b.className = 'on'; b.onclick = () => { myLook[key] = val;[...el.children].forEach(x => x.className = ''); b.className = 'on' }; el.append(b) }) }
     sw('skin', SKc, 'sk'); sw('hair', HRc, 'hr'); sw('hue', HUc, 'hu', true);
-    function wave() { myWave++; setPresence(true) } $('wv').onclick = wave;
+    var meA = null;
+    function wave() { myWave++; if (meA) meA.wt = performance.now(); setPresence(true) } $('wv').onclick = wave;
     const floaters = [];
     function floatDom(e) { const d = document.createElement('div'); d.className = 'fl'; d.textContent = e; d.style.left = (40 + Math.random() * 20) + '%'; document.body.append(d); setTimeout(() => d.remove(), 2200) }
     function spawnFloat(grp, e) { const c = document.createElement('canvas'); c.width = c.height = 96; const x = c.getContext('2d'); x.font = '64px serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(e, 48, 52); const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true })); sp.scale.set(.6, .6, 1); sp.position.y = 2.45; grp.add(sp); floaters.push({ sp, grp, t: performance.now() }) }
     function tickFloaters() { const n = performance.now(); for (let i = floaters.length - 1; i >= 0; i--) { const f = floaters[i], a = (n - f.t) / 2400; if (a >= 1) { f.grp.remove(f.sp); f.sp.material.map.dispose(); f.sp.material.dispose(); floaters.splice(i, 1); continue } f.sp.position.y = 2.45 + a * .9; f.sp.material.opacity = a < .7 ? 1 : (1 - a) / .3 } }
     function react(e) { floatDom(e); if (room) room.emit('react', { e }).catch(() => { }) }
     EMO.forEach(e => { const b = document.createElement('button'); b.className = 'g e'; b.textContent = e; b.onclick = () => react(e); $('emo').append(b) });
+    [['🙌', () => setEmote('clap')], ['😆', () => setEmote('laugh')], ['👉', () => setEmote('point')], ['🆗', () => setEmote('thumb')], ['🪑', () => setEmote('sit')], ['💃', () => setEmote('dance')], ['📷', () => togglePhoto()]].forEach(([i, f]) => { const b = document.createElement('button'); b.className = 'g e'; b.textContent = i; b.onclick = f; $('emo').append(b) });
     function standUp() { sitting = false; if (emote === 'sit') emote = null; pz = Math.min(pz + 1.4, D / 2 - 1); setPresence(true) }
-    function toggleDance() { if (sitting) standUp(); emote = emote === 'dance' ? null : 'dance'; $('dn').className = emote ? '' : 'g'; setPresence(true) }
+    const ONESHOT = { clap: 2600, laugh: 2600, point: 3000, thumb: 2400 }; let emoTimer = 0;
+    function setEmote(n) {
+      clearTimeout(emoTimer);
+      if (emote === n) { if (n === 'sit') standUp(); else emote = null }
+      else {
+        if (sitting) standUp();
+        emote = n; if (n === 'sit') sitting = true;
+        if (ONESHOT[n]) emoTimer = setTimeout(() => { if (emote === n) { emote = null; $('dn').className = 'g'; setPresence(true) } }, ONESHOT[n]);
+      }
+      $('dn').className = emote === 'dance' ? '' : 'g'; setPresence(true);
+    }
+    function toggleDance() { setEmote('dance') }
     function trySit() { }
     $('dn').onclick = toggleDance;
     $('look').onclick = () => { document.exitPointerLock?.(); $('start').style.display = 'flex'; $('go').textContent = 'Save look'; const p = document.querySelector('#start p'); if (p) p.style.display = 'none' };
@@ -1051,7 +1064,7 @@ export default function startGallery() {
           it.startY = -(v.h / 2 + it.ih / 2 + outside);
         }
 
-        it.x = it.startX;
+        it.x = it.startX; const rotation = it.startRotation, inside = false;
         it.y = it.startY;
 
         it.elapsed = 0;
@@ -1209,7 +1222,7 @@ export default function startGallery() {
     // ---- player
     let yaw = 0, pitch = 0, px = 0, pz = 9.5; const keys = {}; let started = false, locked = false, mv = { x: 0, y: 0 };
     const touch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
-    addEventListener('keydown', e => { if (!started || document.activeElement.tagName === 'INPUT') return; keys[e.code] = true; if (e.code === 'KeyX') removeMine(); if (e.code === 'KeyF') wave(); if (e.code === 'KeyG') toggleDance(); if (e.code === 'KeyE') trySit(); if (e.code === 'KeyM') toggleMic() });
+    addEventListener('keydown', e => { if (!started || document.activeElement.tagName === 'INPUT') return; keys[e.code] = true; if (e.code === 'KeyX') removeMine(); if (e.code === 'KeyF') wave(); if (e.code === 'KeyG') setEmote('dance'); if (e.code === 'KeyE') setEmote('sit'); if (e.code === 'KeyC') setEmote('clap'); if (e.code === 'KeyV') setEmote('laugh'); if (e.code === 'KeyB') setEmote('point'); if (e.code === 'KeyN') setEmote('thumb'); if (e.code === 'KeyP') togglePhoto(); if (e.code === 'Space' && photoOn) shoot(); if (e.code === 'KeyM') toggleMic() });
     addEventListener('keydown', e => { if (started && e.key === 'Enter' && document.activeElement.tagName !== 'INPUT' && $('panel').style.display !== 'flex') { e.preventDefault(); document.exitPointerLock?.(); $('cin').focus() } });
     addEventListener('keyup', e => keys[e.code] = false);
     const cvs = renderer.domElement;
@@ -1335,6 +1348,7 @@ export default function startGallery() {
     }
 
     function step(dt) {
+      if (photoOn && !evBusy) { photoCam(dt); return }
       if (evBusy) return;
       let f =
         (keys.KeyW || keys.ArrowUp ? 1 : 0) -
@@ -1847,7 +1861,7 @@ export default function startGallery() {
         }
         a.mic = !!d.mic; setSpeaking(a, !!a.spk && a.mic);
         const headPitch = Number(d.pit ?? d.rp ?? 0);
-        a.tp = THREE.MathUtils.clamp(headPitch * 1.5, -1.2, 1.2); a.em = d.em === 'dance' || d.em === 'sit' ? d.em : null; if ((d.w || 0) !== a.wv) { a.wv = d.w || 0; a.wt = performance.now() }
+        a.tp = THREE.MathUtils.clamp(headPitch * 1.5, -1.2, 1.2); a.em = ['dance', 'sit', 'clap', 'laugh', 'point', 'thumb'].includes(d.em) ? d.em : null; if ((d.w || 0) !== a.wv) { a.wv = d.w || 0; a.wt = performance.now() }
       }
       for (const [k, a] of avatars) if (!seen.has(k)) { scene.remove(a.g); avatars.delete(k) }
       syncRtc();
@@ -1962,6 +1976,13 @@ export default function startGallery() {
       }
 
 
+      const EW = a.ew = a.ew || {};
+      for (const n of ['clap', 'laugh', 'point', 'thumb']) EW[n] = (EW[n] || 0) + ((a.em === n ? 1 : 0) - (EW[n] || 0)) * Math.min(1, dt * 8);
+      const mixR = (o, ax, v, w) => { if (w > .01) o.rotation[ax] = o.rotation[ax] * (1 - w) + v * w };
+      if (EW.clap > .01) { const w = EW.clap, b = Math.sin(t * 16) * .5 + .5; mixR(P.lArm, 'x', 1.25, w); mixR(P.rArm, 'x', 1.25, w); mixR(P.lFore, 'x', 1.1, w); mixR(P.rFore, 'x', 1.1, w); mixR(P.lArm, 'z', .12 + b * .28, w); mixR(P.rArm, 'z', -(.12 + b * .28), w) }
+      if (EW.laugh > .01) { const w = EW.laugh, sh = Math.sin(t * 24); mixR(P.torso, 'x', .12 + sh * .05, w); mixR(P.lArm, 'x', .6, w); mixR(P.rArm, 'x', .6, w); mixR(P.lFore, 'x', 1.3, w); mixR(P.rFore, 'x', 1.3, w); P.body.position.y += Math.abs(sh) * .035 * w; P.head.rotation.x += .3 * w }
+      if (EW.point > .01) { const w = EW.point; mixR(P.rArm, 'x', 1.55, w); mixR(P.rFore, 'x', .1, w) }
+      if (EW.thumb > .01) { const w = EW.thumb; mixR(P.rArm, 'x', .9, w); mixR(P.rFore, 'x', 1.7, w); mixR(P.rArm, 'z', .15, w); P.rHand.rotation.z = Math.sin(t * 10) * .15 * w }
       // WAVE: upper arm out to the side, elbow bent so the forearm points up, forearm swings side to side
       const el = a.wt ? performance.now() - a.wt : 9999;
       const r = Math.max(0, Math.min(1, el / 250, (2200 - el) / 250));
@@ -2261,6 +2282,96 @@ export default function startGallery() {
     function emojiSprite(e) { const c = document.createElement('canvas'); c.width = c.height = 96; const x = c.getContext('2d'); x.font = '64px serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(e, 48, 52); return new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true })) }
     function setSpeaking(a, on) { a.spk = on; const lb = a.g.userData.lb; if (lb) drawLabel(lb, on ? 2 : a.mic ? 1 : 0) }
 
+    // ---- group photo mode
+    var photoOn = false; let meAv = null, photoFace = 0, photoBusy = false, photoDist = 3.6; const PT = [0, 3, 5, 10]; let pti = 2;
+    talkBtn.id = 'talkBtn';
+    const pst = document.createElement('style');
+    pst.textContent = 'body.photo #chat,body.photo #cross,body.photo #count,body.photo #visitors-toggle,body.photo #visitor-panel,body.photo #look,body.photo #add,body.photo #rn,body.photo #cap,body.photo #guide,body.photo #talkBtn,body.photo #vhud{display:none!important}';
+    document.head.append(pst);
+    const pbtn = 'padding:10px 14px;border:0;border-radius:20px;background:rgba(20,20,24,.85);color:#fff;font:600 14px system-ui,sans-serif;cursor:pointer';
+    const photoUI = document.createElement('div');
+    photoUI.style.cssText = 'position:fixed;inset:0;z-index:35;display:none;pointer-events:none;color:#fff;font:600 14px system-ui,sans-serif';
+    photoUI.innerHTML = '<div style="position:absolute;inset:14px;border:3px solid rgba(255,255,255,.7);border-radius:10px"></div><div id="pcd" style="position:absolute;inset:0;display:none;align-items:center;justify-content:center;font-size:110px;text-shadow:0 4px 20px #000"></div><div style="position:absolute;left:0;right:0;bottom:calc(84px + env(safe-area-inset-bottom));display:flex;gap:8px;justify-content:center;flex-wrap:wrap;pointer-events:auto"><button id="pshot" style="' + pbtn + '">📸 Take photo</button><button id="ptm" style="' + pbtn + '">⏱ 5s</button><button id="pcall" style="' + pbtn + '">📣 Call group</button><button id="pend" style="' + pbtn + '">✕ Exit</button></div>';
+    document.body.append(photoUI);
+    const ringGeo = new THREE.RingGeometry(.42, .5, 32);
+    function voiceRing(a, on, lv) {
+      if (!a.ring) { a.ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0x6dff8c, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide })); a.ring.rotation.x = -Math.PI / 2; a.ring.position.y = .03; a.g.add(a.ring) }
+      const m = a.ring.material, tgt = on ? Math.min(1, .35 + lv * 4) * .85 : 0;
+      m.opacity += (tgt - m.opacity) * .25;
+      const s = 1 + (on ? Math.sin(performance.now() / 120) * .08 + lv * 1.5 : 0); a.ring.scale.set(s, s, 1); a.ring.visible = m.opacity > .02;
+    }
+    const vhud = document.createElement('div'); vhud.id = 'vhud';
+    vhud.style.cssText = 'position:fixed;right:10px;top:96px;z-index:19;display:none;flex-direction:column;gap:4px;min-width:140px;font:600 12px system-ui,sans-serif;color:#fff;pointer-events:none';
+    document.body.append(vhud);
+    let vhT = 0, vhKey = '';
+    function voiceHud(rows) {
+      const n = performance.now(); if (n - vhT < 150) return; vhT = n;
+      rows = rows.sort((p, q) => q.vol - p.vol).slice(0, 6);
+      const key = rows.map(r => r.name + Math.round(r.vol * 10) + r.spk).join('|'); if (key === vhKey) return; vhKey = key;
+      vhud.style.display = rows.length && started ? 'flex' : 'none'; vhud.innerHTML = '';
+      for (const r of rows) {
+        const d = document.createElement('div'); d.style.cssText = 'background:rgba(20,20,24,.75);border-radius:8px;padding:5px 8px;border:1px solid ' + (r.spk ? '#6dff8c' : 'transparent');
+        const nm = document.createElement('div'); nm.textContent = (r.spk ? '🔊 ' : '🎤 ') + r.name;
+        const bar = document.createElement('div'); bar.style.cssText = 'height:4px;border-radius:2px;margin-top:4px;background:rgba(255,255,255,.2);overflow:hidden';
+        const f = document.createElement('div'); f.style.cssText = 'height:100%;background:#6dff8c;width:' + Math.round(r.vol * 100) + '%';
+        bar.append(f); d.append(nm, bar); vhud.append(d);
+      }
+    }
+    photoUI.querySelector('#pshot').onclick = () => shoot();
+    photoUI.querySelector('#ptm').onclick = e => { pti = (pti + 1) % PT.length; e.target.textContent = '⏱ ' + (PT[pti] ? PT[pti] + 's' : 'now') };
+    photoUI.querySelector('#pcall').onclick = () => { const t = '📸 Group photo here, come pose with me!'; addChat(myName, t); if (room) room.emit('chat', { name: myName, text: t }).catch(() => { }) };
+    photoUI.querySelector('#pend').onclick = () => togglePhoto();
+    addEventListener('wheel', e => { if (photoOn) photoDist = Math.max(1.6, Math.min(8, photoDist + e.deltaY * .004)) }, { passive: true });
+    function togglePhoto() {
+      if (!started || evBusy) return;
+      photoOn = !photoOn;
+      document.body.classList.toggle('photo', photoOn);
+      photoUI.style.display = photoOn ? 'block' : 'none';
+      if (photoOn) {
+        if (meAv) scene.remove(meAv);
+        meAv = makeAvatar(myName, myLook.hu, myGen, seedOf(myId), myLook);
+        meA = { g: meAv, k: 0, ph: 0, tp: 0, em: null, wt: 0 };
+        photoFace = yaw; yaw = photoFace + Math.PI; pitch = -.1; stick.style.display = 'none';
+      } else {
+        if (meAv) meAv.visible = false;
+        yaw = photoFace; pitch = 0; if (touch) stick.style.display = 'block';
+      }
+    }
+    function photoCam(dt) {
+      if (!meA) return;
+      pitch = Math.max(-.7, Math.min(.5, pitch));
+      const ty = sy + (emote === 'sit' ? .8 : 1.2);
+      const cx = Math.max(-W / 2 + .4, Math.min(W / 2 - .4, px + Math.sin(yaw) * photoDist));
+      const cz = Math.max(-D / 2 + .4, Math.min(D / 2 - .4, pz + Math.cos(yaw) * photoDist));
+      cam.position.set(cx, ty + .3 - pitch * 2, cz); cam.lookAt(px, ty, pz);
+      meAv.position.x = px; meAv.position.z = pz; meAv.rotation.y = photoFace; meA.by = sy; meA.em = emote;
+      animate(meA, dt);
+    }
+    async function shoot() {
+      if (!photoOn || photoBusy) return; photoBusy = true;
+      const cd = photoUI.querySelector('#pcd');
+      for (let i = PT[pti]; i > 0; i--) { cd.style.display = 'flex'; cd.textContent = i; sfxClick(); await wait(1000); if (!photoOn) { cd.style.display = 'none'; photoBusy = false; return } }
+      cd.style.display = 'none'; await wait(60);
+      renderer.render(scene, cam);
+      const src = renderer.domElement, c = document.createElement('canvas'); c.width = src.width; c.height = src.height;
+      const x = c.getContext('2d'); x.drawImage(src, 0, 0);
+      const fs = Math.round(c.height * .028), by = c.height - fs * .95;
+      x.fillStyle = 'rgba(0,0,0,.5)'; x.fillRect(0, c.height - fs * 1.9, c.width, fs * 1.9);
+      x.fillStyle = '#fff'; x.font = '600 ' + fs + 'px Georgia, serif'; x.textBaseline = 'middle'; x.textAlign = 'left';
+      x.fillText('The Gallery · Room ' + (myRoom + 1) + ' · ' + new Date().toLocaleDateString(), fs, by);
+      x.textAlign = 'right'; x.fillText([myName, ...Array.from(avatars.values()).map(a => a.name)].slice(0, 6).join(', '), c.width - fs, by, c.width * .5);
+      const url = c.toDataURL('image/jpeg', .92);
+      sfxTone(2200, 600, .12, .5, 'square');
+      const fl = document.createElement('div'); fl.style.cssText = 'position:fixed;inset:0;background:#fff;opacity:.9;z-index:36;transition:opacity .5s;pointer-events:none';
+      document.body.append(fl); requestAnimationFrame(() => fl.style.opacity = '0'); setTimeout(() => fl.remove(), 600);
+      photoUI.querySelector('#pprev')?.remove();
+      const a = document.createElement('a'); a.id = 'pprev'; a.href = url; a.download = 'gallery-photo-' + Date.now() + '.jpg';
+      a.style.cssText = 'position:absolute;right:16px;top:16px;pointer-events:auto;background:#fff;padding:6px;border-radius:8px;width:150px;color:#111;text-decoration:none;font:600 12px system-ui,sans-serif;text-align:center';
+      a.innerHTML = '<img style="width:100%;border-radius:4px;display:block" src="' + url + '"><div style="margin-top:4px">⬇ Save photo</div>';
+      photoUI.append(a); setTimeout(() => a.remove(), 12000);
+      photoBusy = false;
+    }
+
     async function toggleMic() {
       if (micOn) {
         micOn = false; micStream?.getTracks().forEach(t => t.stop()); micStream = null; localAn = null;
@@ -2334,6 +2445,7 @@ export default function startGallery() {
     });
     let lastGl = false;
     function voiceTick() {
+      const rows = [];
       if (!actx) return;
       const L = actx.listener, fx = -Math.sin(yaw), fz = -Math.cos(yaw);
       if (L.positionX) { L.positionX.value = px; L.positionY.value = EYE; L.positionZ.value = pz; L.forwardX.value = fx; L.forwardY.value = 0; L.forwardZ.value = fz; L.upX.value = 0; L.upY.value = 1; L.upZ.value = 0 }
@@ -2346,8 +2458,9 @@ export default function startGallery() {
         if (v.out.pan) v.out.pan.pan.value = Math.max(-1, Math.min(1, (dx * Math.cos(yaw) - dz * Math.sin(yaw)) / Math.max(d, 1)));
         if (level(v.out.an) > .06) a.spkT = now;
         setSpeaking(a, now - (a.spkT || 0) < 300);   // short hold so the icon doesn't flicker
+        voiceRing(a, now - (a.spkT || 0) < 300, level(v.out.an)); rows.push({ name: a.name, vol: Math.max(0, Math.min(1, 1.15 - d / 18)), spk: now - (a.spkT || 0) < 300 });
       }
-      const gl = micOn && level(localAn) > .06; if (gl !== lastGl) { lastGl = gl; $('mic').style.boxShadow = gl ? '0 0 0 3px #6dff8c' : '' }
+      voiceHud(rows); const gl = micOn && level(localAn) > .06; if (gl !== lastGl) { lastGl = gl; $('mic').style.boxShadow = gl ? '0 0 0 3px #6dff8c' : '' }
     }
 
     // ---- elevator control (floors = rooms)
