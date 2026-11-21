@@ -15,3 +15,9 @@ class Painting(models.Model):
         return {'id': self.id, 'assetId': self.asset, 'url': '/uploads/' + self.asset,
                 'title': self.title, 'artist': self.artist, 'w': self.w, 'h': self.h,
                 'owner': self.owner, 'createdAt': self.created}
+
+
+class Asset(models.Model):
+    name = models.CharField(max_length=40, primary_key=True)
+    data = models.BinaryField()
+    ctype = models.CharField(max_length=20, default='image/jpeg')

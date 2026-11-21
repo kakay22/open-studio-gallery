@@ -7,5 +7,5 @@ urlpatterns = [
     path('api/assets', views.assets),
     path('api/paintings', views.paintings),
     path('api/paintings/<str:pid>', views.painting),
-    re_path(r'^uploads/(?P<path>.*)$', serve, {'document_root': settings.UPLOAD_DIR}),
+    path('uploads/<str:name>', views.upload_file),
 ]

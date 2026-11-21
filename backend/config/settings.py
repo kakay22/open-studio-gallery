@@ -38,7 +38,10 @@ CORS_ALLOWED_ORIGINS = [
 
 ROOT_URLCONF = 'config.urls'
 ASGI_APPLICATION = 'config.asgi.application'
-DATABASES = {'default': {'ENGINE': 'django.db.backends.sqlite3', 'NAME': DATA_DIR / 'db.sqlite3'}}
+import dj_database_url
+DATABASES = {'default': dj_database_url.config(
+    default=f"sqlite:///{DATA_DIR / 'db.sqlite3'}", conn_max_age=600, ssl_require=bool(os.environ.get('DATABASE_URL')))}
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 DATA_UPLOAD_MAX_MEMORY_SIZE = 13 * 1024 * 1024
 

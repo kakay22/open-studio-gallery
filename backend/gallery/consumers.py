@@ -5,7 +5,7 @@ import uuid
 from channels.generic.websocket import AsyncWebsocketConsumer
 
 CLIENTS = {}          # connection id -> presence state (x, z, ry, name, look, emote...)
-KEYS = ('x', 'z', 'ry', 'r', 'g', 'sk', 'hr', 'hu', 'w', 'em', 'name', 'pit', 'rp', 'mic')
+KEYS = ('x', 'z', 'y', 'ry', 'r', 'g', 'sk', 'hr', 'hu', 'w', 'em', 'name', 'pit', 'rp', 'mic')
 CHANNELS = {}         # connection id -> channel name, used to send call setup messages to one person
 _dirty = False
 _task = None

@@ -9,7 +9,7 @@ from django.conf import settings
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.http import require_http_methods
 
-from .models import Painting
+from .models import Painting, Asset
 
 ASSET_RE = re.compile(r'^[a-f0-9]{16}\.(jpg|png)$')
 MAX_IMAGE = 12 * 1024 * 1024
@@ -37,8 +37,18 @@ def assets(request):
     if not (jpg or png):
         return HttpResponse(status=415)
     name = secrets.token_hex(8) + ('.jpg' if jpg else '.png')
-    (settings.UPLOAD_DIR / name).write_bytes(b)
+    Asset.objects.create(name=name, data=b, ctype='image/jpeg' if jpg else 'image/png')
     return JsonResponse({'id': name, 'url': '/uploads/' + name})
+
+
+@require_http_methods(['GET'])
+def upload_file(request, name):
+    a = Asset.objects.filter(pk=name).first()
+    if not a:
+        return HttpResponse(status=404)
+    r = HttpResponse(bytes(a.data), content_type=a.ctype)
+    r['Cache-Control'] = 'public, max-age=31536000, immutable'
+    return r
 
 
 @require_http_methods(['GET'])
@@ -57,7 +67,7 @@ def painting(request, pid):
         if not isinstance(b, dict):
             return HttpResponse(status=400)
         asset = b.get('assetId')
-        if not isinstance(asset, str) or not ASSET_RE.match(asset) or not (settings.UPLOAD_DIR / asset).exists():
+        if not isinstance(asset, str) or not ASSET_RE.match(asset) or not Asset.objects.filter(pk=asset).exists():
             return HttpResponse(status=400)
         if not pid or Painting.objects.filter(pk=pid).exists():
             return HttpResponse(status=409)
@@ -72,10 +82,7 @@ def painting(request, pid):
         return HttpResponse(status=404)
     if p.owner != request.GET.get('owner'):
         return HttpResponse(status=403)
-    try:
-        (settings.UPLOAD_DIR / p.asset).unlink()
-    except OSError:
-        pass
+    Asset.objects.filter(pk=p.asset).delete()
     p.delete()
     notify()
     return HttpResponse(status=204)
