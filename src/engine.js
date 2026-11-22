@@ -1866,7 +1866,7 @@ export default function startGallery() {
 
         if ((d.r || 0) !== myRoom) continue; n++; seen.add(p.peer);
         let a = avatars.get(p.peer); const nm = String(d.name || 'Guest').slice(0, 18);
-        const gn = ['m', 'f'].includes(d.g) ? d.g : 'n'; const sig = [gn, d.sk, d.hr, d.hu].join(); if (!a || a.name !== nm || a.sig !== sig) { if (a) scene.remove(a.g); const hu = (d.hu != null && Number.isFinite(+d.hu)) ? ((+d.hu % 360) + 360) % 360 : hueOf(p.peer); a = { g: makeAvatar(nm, hu, gn, seedOf(p.peer), d), name: nm, sig, ph: 0, k: 0, wv: d.w || 0, wt: 0, tx: d.x, tz: d.z, try: d.ry || 0, buf: [] }; a.g.position.set(d.x, 0, d.z); avatars.set(p.peer, a) }
+        const gn = ['m', 'f'].includes(d.g) ? d.g : 'n'; const sig = [gn, d.sk, d.hr, d.hu].join(); if (!a || a.name !== nm || a.sig !== sig) { if (a) scene.remove(a.g); const hu = (d.hu != null && Number.isFinite(+d.hu)) ? ((+d.hu % 360) + 360) % 360 : hueOf(p.peer); a = { g: makeAvatar(nm, hu, gn, seedOf(p.peer), d), name: nm, gn, sig, ph: 0, k: 0, wv: d.w || 0, wt: 0, tx: d.x, tz: d.z, try: d.ry || 0, buf: [] }; a.g.position.set(d.x, 0, d.z); avatars.set(p.peer, a) }
         a.tx = d.x; a.tz = d.z; a.try = d.ry || 0;
         const ls = a.buf[a.buf.length - 1];
         if (!ls || ls.x !== d.x || ls.z !== d.z || ls.y !== (d.y || 0) || ls.r !== a.try) {
@@ -2786,29 +2786,37 @@ export default function startGallery() {
 
     function sfxTwang(p) { sfxTone(500 + p * 500, 140, .14, .5, 'triangle'); sfxNoise(3500, 900, 2, .1, .35) }
     // Minecraft-style "oof": short low grunt, pitch dropping, muffled
-    function sfxHurt(v = 1) {
+    function sfxHurt(v = 1, gen = 'n') {
       if (!sfxReady()) return;
-      const t = actx.currentTime, r = .9 + Math.random() * .25;
-      const src = actx.createOscillator();
-      src.type = 'sawtooth';
-      src.frequency.setValueAtTime(230 * r, t);
-      src.frequency.linearRampToValueAtTime(260 * r, t + .04);
-      src.frequency.exponentialRampToValueAtTime(130 * r, t + .26);
+      const fem = gen === 'f', mal = gen === 'm';
+      const t = actx.currentTime, r = .94 + Math.random() * .12;
+      // pitch contour (start, peak, end) and "oh" vowel formants per voice
+      const P = fem ? [300, 360, 235] : mal ? [150, 175, 88] : [215, 245, 125];
+      const F = fem ? [[640, 540], [1150, 980], [2900, 2700]] : mal ? [[480, 400], [850, 720], [2300, 2100]] : [[560, 470], [1000, 850], [2600, 2400]];
+      const dur = fem ? .3 : .27;
+      const src = actx.createOscillator(); src.type = 'sawtooth';
+      src.frequency.setValueAtTime(P[0] * r, t);
+      src.frequency.linearRampToValueAtTime(P[1] * r, t + .035);          // sharp "hh-OH" onset
+      src.frequency.exponentialRampToValueAtTime(P[2] * r, t + dur);      // falling tail
+      if (fem) {                                                          // light vibrato for a softer voice
+        const lfo = actx.createOscillator(), lg = actx.createGain(); lfo.frequency.value = 24; lg.gain.value = 5;
+        lfo.connect(lg); lg.connect(src.frequency); lfo.start(t); lfo.stop(t + dur + .05);
+      }
       const out = actx.createGain();
       out.gain.setValueAtTime(.0001, t);
-      out.gain.exponentialRampToValueAtTime(2.2 * v, t + .012);
-      out.gain.exponentialRampToValueAtTime(.0001, t + .3);
-      // vowel formants, like a short "uh / oh"
-      [[620, 520, 1], [1100, 800, .6], [2500, 2200, .25]].forEach(([f1, f2, gn]) => {
-        const bp = actx.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 5;
-        bp.frequency.setValueAtTime(f1, t); bp.frequency.exponentialRampToValueAtTime(f2, t + .28);
+      out.gain.exponentialRampToValueAtTime((mal ? 2.8 : 2.3) * v, t + .01);
+      out.gain.setValueAtTime((mal ? 2.8 : 2.3) * v, t + .07);
+      out.gain.exponentialRampToValueAtTime(.0001, t + dur + .04);
+      [[F[0], 1, 6], [F[1], .65, 7], [F[2], .22, 6]].forEach(([f, gn, q]) => {
+        const bp = actx.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = q;
+        bp.frequency.setValueAtTime(f[0], t); bp.frequency.exponentialRampToValueAtTime(f[1], t + dur);
         const fg = actx.createGain(); fg.gain.value = gn;
         src.connect(bp); bp.connect(fg); fg.connect(out);
       });
       out.connect(sfxOut);
-      src.start(t); src.stop(t + .32);
-      sfxNoise(1500, 500, .7, .09, .35 * v);      // breath
-      sfxTone(110, 45, .12, .5 * v, 'sine');      // body thump
+      src.start(t); src.stop(t + dur + .06);
+      sfxNoise(mal ? 1100 : 1900, 450, .7, .07, (mal ? .45 : .3) * v);   // breathy "hh" at the start
+      if (!fem) sfxTone(mal ? 100 : 120, 42, .13, .6 * v, 'sine');        // chest thump
     }
 
     // ---- elevator finder (small 3D arrow + ELEVATOR label)
@@ -2925,7 +2933,7 @@ export default function startGallery() {
       spawnFloat(a.g, '💥'); flashAvatar(a.g);
       const dx = a.g.position.x - ax, dz = a.g.position.z - az, dd = Math.hypot(dx, dz) || 1, s = kind === 'punch' ? 9 : 6;
       a.kvx = dx / dd * s; a.kvz = dz / dd * s; a.ox = a.ox || 0; a.oz = a.oz || 0;   // instant predicted shove
-      const d = Math.hypot(a.g.position.x - px, a.g.position.z - pz); sfxHurt(Math.max(.25, 1 - d / 20));
+      const d = Math.hypot(a.g.position.x - px, a.g.position.z - pz); sfxHurt(Math.max(.25, 1 - d / 20), a.gn);
     }
 
     // ---- punch
@@ -3012,7 +3020,7 @@ export default function startGallery() {
       if (sitting) standUp();
       hurtEl.style.transition = 'none'; hurtEl.style.opacity = '1'; void hurtEl.offsetWidth;
       hurtEl.style.transition = 'opacity .5s'; hurtEl.style.opacity = '0';
-      sfxHurt(1); shake = 1;
+      sfxHurt(1, myGen); shake = 1;
       const p = lastPeers.find(q => q.peer === from)?.presence;
       if (p && p.x != null && (p.r || 0) === myRoom) {
         const dx = px - p.x, dz = pz - p.z, d = Math.hypot(dx, dz) || 1;
