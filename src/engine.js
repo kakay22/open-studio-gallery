@@ -1918,12 +1918,7 @@ export default function startGallery() {
       if (P.head) {
         const targetPitch = a.tp || 0;
 
-        P.head.rotation.x = THREE.MathUtils.damp(
-          P.head.rotation.x,
-          targetPitch,
-          12,
-          dt
-        );
+        P.head.rotation.x += (targetPitch - P.head.rotation.x) * Math.min(1, dt * 12);
       }
 
       P.lLeg.rotation.x = s * .7 * k;
@@ -2173,7 +2168,8 @@ export default function startGallery() {
 
     // ---- network (own Node server)
     const API = (import.meta.env.VITE_API || '').replace(/\/$/, '');
-    const csrf = () => (document.cookie.match(/csrftoken=([^;]+)/) || [])[1] || '';
+    let csrfToken = '';
+    const csrf = () => csrfToken || (document.cookie.match(/csrftoken=([^;]+)/) || [])[1] || '';
 
     const api = async (path, o = {}) => {
       const response = await fetch(API + path, {
@@ -2190,13 +2186,8 @@ export default function startGallery() {
       if (response.headers.get('content-type')?.includes('application/json')) {
         try {
           const data = await response.clone().json();
-
-          if (data.csrfToken) {
-            csrfToken = data.csrfToken;
-          }
-        } catch (e) {
-          // Ignore responses that aren't valid JSON.
-        }
+          if (data.csrfToken) csrfToken = data.csrfToken;
+        } catch (e) { }
       }
 
       return response;
