@@ -5,10 +5,11 @@ from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.tokens import default_token_generator
 from django.core.exceptions import ValidationError
 from django.core.mail import send_mail
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse, JsonResponse, request
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.views.decorators.csrf import ensure_csrf_cookie
+from django.middleware.csrf import get_token
 from django.views.decorators.http import require_http_methods
 from .models import Profile, Asset
 
@@ -27,9 +28,18 @@ def err(msg, status=400):
 @ensure_csrf_cookie
 @require_http_methods(['GET'])
 def me(request):
+    csrf_token = get_token(request)
+
     if not request.user.is_authenticated:
-        return JsonResponse({'user': None})
-    return JsonResponse({'user': request.user.profile.as_json()})
+        return JsonResponse({
+            'user': None,
+            'csrfToken': csrf_token
+        })
+
+    return JsonResponse({
+        'user': request.user.profile.as_json(),
+        'csrfToken': csrf_token
+    })
 
 @require_http_methods(['POST'])
 def register(request):
@@ -49,7 +59,10 @@ def register(request):
     u = User.objects.create_user(username=username, email=email, password=password)
     Profile.objects.create(user=u, display_name=display, look=b.get('look') if isinstance(b.get('look'), dict) else {})
     login(request, u)
-    return JsonResponse({'user': u.profile.as_json()})
+    return JsonResponse({
+        'user': u.profile.as_json(),
+        'csrfToken': get_token(request)
+    })
 
 @require_http_methods(['POST'])
 def login_view(request):
@@ -59,7 +72,10 @@ def login_view(request):
     u = authenticate(request, username=u.username if u else ident, password=str(b.get('password') or ''))
     if not u: return err('Wrong username or password', 401)
     login(request, u)
-    return JsonResponse({'user': u.profile.as_json()})
+    return JsonResponse({
+        'user': u.profile.as_json(),
+        'csrfToken': get_token(request)
+    })
 
 @require_http_methods(['POST'])
 def logout_view(request):

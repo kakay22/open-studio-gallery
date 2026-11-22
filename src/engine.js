@@ -2177,7 +2177,41 @@ export default function startGallery() {
     const api = (path, o = {}) => fetch(API + path, {
       credentials: 'include', ...o,
       headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf(), ...(o.headers || {}) }
-    });
+    }); let csrfToken = '';
+
+    const csrf = () => {
+      if (csrfToken) return csrfToken;
+
+      const match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+      return match ? decodeURIComponent(match[1]) : '';
+    };
+
+    const api = async (path, o = {}) => {
+      const response = await fetch(API + path, {
+        credentials: 'include',
+        ...o,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrf(),
+          ...(o.headers || {})
+        }
+      });
+
+      // Read fresh CSRF tokens returned by Django.
+      if (response.headers.get('content-type')?.includes('application/json')) {
+        try {
+          const data = await response.clone().json();
+
+          if (data.csrfToken) {
+            csrfToken = data.csrfToken;
+          }
+        } catch (e) {
+          // Ignore responses that aren't valid JSON.
+        }
+      }
+
+      return response;
+    };
     const assetUrl = u => {
       if (!u) return u;
       try {
