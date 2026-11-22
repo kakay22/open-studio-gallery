@@ -1904,6 +1904,13 @@ export default function startGallery() {
           const ux = Math.abs(g.position.x) - SX0, sgn = g.position.x < 0 ? -1 : 1;
           a.by = stairY(g.position.x, g.position.z);
         }
+        if (a.kvx || a.kvz || a.ox || a.oz) {   // predicted knockback offset, fades out as the real position arrives
+          a.ox += a.kvx * dt; a.oz += a.kvz * dt;
+          const kd = Math.exp(-dt * 14); a.kvx *= kd; a.kvz *= kd;
+          const od = Math.exp(-dt * 4); a.ox *= od; a.oz *= od;
+          if (Math.abs(a.ox) + Math.abs(a.oz) + Math.abs(a.kvx) + Math.abs(a.kvz) < .01) a.ox = a.oz = a.kvx = a.kvz = 0;
+          g.position.x += a.ox; g.position.z += a.oz;
+        }
         animate(a, dt);
       }
     }
@@ -2882,14 +2889,23 @@ export default function startGallery() {
     const actBox = document.createElement('div'); actBox.id = 'act';
     actBox.style.cssText = 'position:fixed;right:max(14px,env(safe-area-inset-right));bottom:calc(max(18px,env(safe-area-inset-bottom)) + 66px);z-index:19;display:none;flex-direction:column;gap:10px';
     const cd = { punch: 0, bow: 0 };
-    function mkAct(icon, label, fn, up) {
+    function mkAct(icon, label, fn, up, drag) {
       const b = document.createElement('button'); b.type = 'button'; b.textContent = icon; b.title = label; b.setAttribute('aria-label', label);
-      b.style.cssText = 'width:62px;height:62px;min-height:0;padding:0;border-radius:50%;font-size:30px;line-height:1;background:rgba(28,28,32,.94);border:1px solid rgba(255,255,255,.18);color:#fff;box-shadow:0 8px 25px #0006;touch-action:manipulation;transition:opacity .15s';
-      b.addEventListener('pointerdown', e => { e.preventDefault(); try { b.setPointerCapture(e.pointerId) } catch (_) { } fn() });
-      if (up) for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) b.addEventListener(ev, up);
+      b.style.cssText = 'width:62px;height:62px;min-height:0;padding:0;border-radius:50%;font-size:30px;line-height:1;background:rgba(28,28,32,.94);border:1px solid rgba(255,255,255,.18);color:#fff;box-shadow:0 8px 25px #0006;touch-action:none;transition:opacity .15s';
+      let lx = 0, ly = 0, sx = 0, sy2 = 0, on = false;
+      b.addEventListener('pointerdown', e => { e.preventDefault(); try { b.setPointerCapture(e.pointerId) } catch (_) { } lx = sx = e.clientX; ly = sy2 = e.clientY; on = true; fn() });
+      if (drag) b.addEventListener('pointermove', e => {
+        if (!on) return;
+        drag(e.clientX - lx, e.clientY - ly); lx = e.clientX; ly = e.clientY;
+        let dx = e.clientX - sx, dy = e.clientY - sy2; const m = Math.hypot(dx, dy) || 1, k = Math.min(1, 40 / m);
+        b.style.transform = `translate(${dx * k}px,${dy * k}px)`;   // button follows the thumb
+      });
+      if (up) for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) b.addEventListener(ev, () => { if (!on) return; on = false; b.style.transform = ''; up() });
       actBox.append(b); return b;
     }
-    const bPunch = mkAct('👊', 'Punch (Z)', () => punch()), bBow = mkAct('🏹', 'Bow (hold Q)', () => bowStart(), () => bowRelease());
+    const bPunch = mkAct('👊', 'Punch (Z)', () => punch()), bBow = mkAct('🏹', 'Bow (hold Q)', () => bowStart(), () => bowRelease(), (dx, dy) => {
+      yaw -= dx * .007; pitch = Math.max(-1.2, Math.min(1.2, pitch - dy * .007));
+    });
     document.body.append(actBox);
     function ready(k, ms) {
       const n = performance.now(); if (n < cd[k]) return false; cd[k] = n + ms;
@@ -2905,8 +2921,10 @@ export default function startGallery() {
       const sv = []; g.traverse(o => { if (o.isMesh && o.material) { sv.push([o, o.material]); o.material = HURTM } });
       setTimeout(() => { for (const [o, m] of sv) o.material = m; g.userData.fl = false }, 220);
     }
-    function hitFx(a) {
+    function hitFx(a, ax = px, az = pz, kind = 'punch') {
       spawnFloat(a.g, '💥'); flashAvatar(a.g);
+      const dx = a.g.position.x - ax, dz = a.g.position.z - az, dd = Math.hypot(dx, dz) || 1, s = kind === 'punch' ? 9 : 6;
+      a.kvx = dx / dd * s; a.kvz = dz / dd * s; a.ox = a.ox || 0; a.oz = a.oz || 0;   // instant predicted shove
       const d = Math.hypot(a.g.position.x - px, a.g.position.z - pz); sfxHurt(Math.max(.25, 1 - d / 20));
     }
 
@@ -2923,7 +2941,7 @@ export default function startGallery() {
         }
         shake = Math.max(shake, .25);
         if (room) room.emit('act', { k: 'punch', to: best }).catch(() => { });
-        if (best) { const a = avatars.get(best); if (a) hitFx(a) }
+        if (best) { const a = avatars.get(best); if (a) hitFx(a, px, pz, 'punch') }
       }, 160);
     }
 
@@ -2985,7 +3003,7 @@ export default function startGallery() {
       const r2 = n => +n.toFixed(2), o = O.map(r2), d = D3.map(r2), l = +len.toFixed(1), p = +c.toFixed(2);
       spawnArrow(o, d, l, 16 + 26 * c);
       if (room) room.emit('act', { k: 'arrow', o, d, l, p, to }).catch(() => { });
-      if (to) { const a = avatars.get(to); if (a) { hitFx(a); sfxTone(300, 100, .08, .5, 'square') } }
+      if (to) { const a = avatars.get(to); if (a) { hitFx(a, px, pz, 'arrow'); sfxTone(300, 100, .08, .5, 'square') } }
     }
 
     // ---- getting hit: red flash, camera shake, sound, knockback
@@ -3011,7 +3029,8 @@ export default function startGallery() {
       const pw = Math.min(1, Math.max(0, +d.p || 0));
       if (d.k === 'arrow' && ok3(d.o) && ok3(d.d) && Number.isFinite(+d.l) && +d.l > 0 && +d.l <= 31) spawnArrow(d.o, d.d, +d.l, 16 + 26 * pw);
       if ((d.k === 'arrow' || d.k === 'punch') && d.to) {
-        const t = avatars.get(d.to); if (t) hitFx(t);
+        const t = avatars.get(d.to), at = avatars.get(m.peer);
+        if (t) hitFx(t, at ? at.g.position.x : sp.x, at ? at.g.position.z : sp.z, d.k === 'punch' ? 'punch' : 'arrow');
         if (d.to === wsId) hurt(m.peer, d.k, pw);
       }
     });
