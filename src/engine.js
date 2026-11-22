@@ -1384,7 +1384,7 @@ export default function startGallery() {
       }
 
       const len = Math.hypot(f, r) || 1;
-      const sp = 3.6 * dt / Math.max(1, len);
+      const sp = 3.6 * (bowT ? .55 : 1) * dt / Math.max(1, len);
 
       const moveX =
         (-Math.sin(yaw) * f + Math.cos(yaw) * r) * sp;
@@ -2010,8 +2010,9 @@ export default function startGallery() {
       if (EW.draw > .01) {
         // bow stance: left arm straight out holding the bow, right hand pulled back to the cheek
         const w = EW.draw;
-        mixR(P.lArm, 'x', 1.5, w); mixR(P.lFore, 'x', .05, w);
-        mixR(P.rArm, 'x', 1.35, w); mixR(P.rArm, 'z', .3, w); mixR(P.rFore, 'x', 2.3 + Math.sin(t * 40) * .03, w);
+        const pa = (a.tp || 0) / 1.5;
+        mixR(P.lArm, 'x', 1.5 + pa, w); mixR(P.lFore, 'x', .05, w);
+        mixR(P.rArm, 'x', 1.35 + pa, w); mixR(P.rArm, 'z', .3, w); mixR(P.rFore, 'x', 2.3 + Math.sin(t * 40) * .03, w);
         mixR(P.torso, 'y', -.5, w);
       }
       P.head.rotation.y = .5 * (EW.draw || 0);
@@ -2780,16 +2781,27 @@ export default function startGallery() {
     // Minecraft-style "oof": short low grunt, pitch dropping, muffled
     function sfxHurt(v = 1) {
       if (!sfxReady()) return;
-      const t = actx.currentTime, o = actx.createOscillator(), o2 = actx.createOscillator(), f = actx.createBiquadFilter(), g = actx.createGain();
-      const base = 300 + Math.random() * 40;
-      o.type = 'sawtooth'; o2.type = 'square';
-      o.frequency.setValueAtTime(base, t); o.frequency.exponentialRampToValueAtTime(base * .45, t + .2);
-      o2.frequency.setValueAtTime(base * .5, t); o2.frequency.exponentialRampToValueAtTime(base * .22, t + .2);
-      f.type = 'lowpass'; f.Q.value = 4; f.frequency.setValueAtTime(1400, t); f.frequency.exponentialRampToValueAtTime(350, t + .2);
-      g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.7 * v, t + .01); g.gain.exponentialRampToValueAtTime(.0001, t + .22);
-      o.connect(f); o2.connect(f); f.connect(g); g.connect(sfxOut);
-      o.start(t); o2.start(t); o.stop(t + .25); o2.stop(t + .25);
-      sfxNoise(1800, 400, .8, .08, .5 * v);
+      const t = actx.currentTime, r = .9 + Math.random() * .25;
+      const src = actx.createOscillator();
+      src.type = 'sawtooth';
+      src.frequency.setValueAtTime(230 * r, t);
+      src.frequency.linearRampToValueAtTime(260 * r, t + .04);
+      src.frequency.exponentialRampToValueAtTime(130 * r, t + .26);
+      const out = actx.createGain();
+      out.gain.setValueAtTime(.0001, t);
+      out.gain.exponentialRampToValueAtTime(2.2 * v, t + .012);
+      out.gain.exponentialRampToValueAtTime(.0001, t + .3);
+      // vowel formants, like a short "uh / oh"
+      [[620, 520, 1], [1100, 800, .6], [2500, 2200, .25]].forEach(([f1, f2, gn]) => {
+        const bp = actx.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 5;
+        bp.frequency.setValueAtTime(f1, t); bp.frequency.exponentialRampToValueAtTime(f2, t + .28);
+        const fg = actx.createGain(); fg.gain.value = gn;
+        src.connect(bp); bp.connect(fg); fg.connect(out);
+      });
+      out.connect(sfxOut);
+      src.start(t); src.stop(t + .32);
+      sfxNoise(1500, 500, .7, .09, .35 * v);      // breath
+      sfxTone(110, 45, .12, .5 * v, 'sine');      // body thump
     }
 
     // ---- elevator finder (small 3D arrow + ELEVATOR label)
@@ -2873,8 +2885,8 @@ export default function startGallery() {
     function mkAct(icon, label, fn, up) {
       const b = document.createElement('button'); b.type = 'button'; b.textContent = icon; b.title = label; b.setAttribute('aria-label', label);
       b.style.cssText = 'width:62px;height:62px;min-height:0;padding:0;border-radius:50%;font-size:30px;line-height:1;background:rgba(28,28,32,.94);border:1px solid rgba(255,255,255,.18);color:#fff;box-shadow:0 8px 25px #0006;touch-action:manipulation;transition:opacity .15s';
-      b.addEventListener('pointerdown', e => { e.preventDefault(); fn() });
-      if (up) for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) b.addEventListener(ev, up);
+      b.addEventListener('pointerdown', e => { e.preventDefault(); try { b.setPointerCapture(e.pointerId) } catch (_) { } fn() });
+      if (up) for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) b.addEventListener(ev, up);
       actBox.append(b); return b;
     }
     const bPunch = mkAct('👊', 'Punch (Z)', () => punch()), bBow = mkAct('🏹', 'Bow (hold Q)', () => bowStart(), () => bowRelease());
@@ -3010,6 +3022,11 @@ export default function startGallery() {
       requestAnimationFrame(loop); const dt = Math.min(.05, (t - last) / 1000); last = t;
       if (started) {
         step(dt); setPresence(false); look(); bowTick();
+        { // scope zoom while the bow is drawn
+          const bf = cam.aspect < 1 ? Math.min(100, 70 + (1 - cam.aspect) * 45) : 70;
+          const tf = bowT ? bf - 16 * Math.min(1, (performance.now() - bowT) / 900) : bf;
+          if (Math.abs(cam.fov - tf) > .05) { cam.fov += (tf - cam.fov) * Math.min(1, dt * 10); cam.updateProjectionMatrix() }
+        }
         if (shake > 0 && !photoOn) {
           cam.rotation.z = Math.sin(performance.now() / 25) * shake * .06 + shake * .1;   // tilt + rattle
           cam.position.y += (Math.random() - .5) * shake * .06;

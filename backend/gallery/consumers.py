@@ -66,7 +66,7 @@ class GalleryConsumer(AsyncWebsocketConsumer):
                         v = v[:24]
                     if v is None or isinstance(v, (str, int, float)):
                         st[k] = v
-            st['name'] = self.dname
+                        st['name'] = self.dname if self.dname != 'Guest' else (str(m['s'].get('name') or 'Guest')[:18] or 'Guest')
             _dirty = True
         elif t in ('chat', 'react', 'act') and isinstance(m.get('data'), dict) and len(json.dumps(m['data'])) < 600:
             
