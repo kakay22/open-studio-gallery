@@ -24,6 +24,7 @@ function Icon({ name, size = 20 }) {
       </>
     ),
     plus: <><path d="M12 5v14M5 12h14" /></>,
+    user: <><circle cx="12" cy="8" r="4" /><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1" /></>,
     left: <><path d="m15 18-6-6 6-6" /></>,
     right: <><path d="m9 18 6-6-6-6" /></>,
     hand: <><path d="M8 11V5a2 2 0 0 1 4 0v5-7a2 2 0 0 1 4 0v8-5a2 2 0 0 1 4 0v8a7 7 0 0 1-7 7h-1a7 7 0 0 1-6-3l-3-4a2 2 0 0 1 3-3l2 2" /></>,
@@ -54,6 +55,10 @@ function IconButton({ id, label, children, className = '' }) {
     </button>
   );
 }
+
+const fld = { padding: 11, borderRadius: 10, border: 0, background: '#2a2c35', color: '#fff', font: '14px system-ui,sans-serif' };
+const pfBtn = { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 50, borderRadius: 12, border: '1px solid rgba(255,255,255,.1)', background: 'rgba(255,255,255,.06)', color: '#fff', font: '600 14px system-ui,sans-serif', cursor: 'pointer' };
+const lnk = { background: 'none', border: 0, color: '#a99bff', cursor: 'pointer', fontSize: 12 };
 
 export default function App() {
   useEffect(() => {
@@ -137,6 +142,10 @@ export default function App() {
           <IconButton id="mic" label="Open mic (M)">
             <Icon name="mic" />
           </IconButton>
+
+          <IconButton id="prof" label="My profile">
+            <Icon name="user" />
+          </IconButton>
         </div>
 
         <button
@@ -212,6 +221,8 @@ export default function App() {
         <div><span>Enter</span> Chat</div>
         <div><span>M</span> Mic</div>
         <div><span>L</span> Elevator</div>
+        <div><span>Z</span> Punch</div>
+        <div><span>Q</span> Bow</div>
       </div>
 
       <div id="cap" className="hud" />
@@ -265,9 +276,51 @@ export default function App() {
       <div id="joy" />
       <div id="cross" />
 
+      {/* LOGIN / REGISTER */}
+      <div id="auth" style={{ display: 'none', position: 'fixed', inset: 0, zIndex: 200, alignItems: 'center', justifyContent: 'center', background: 'rgba(10,10,14,.94)', color: '#fff' }}>
+        <div style={{ width: 'min(380px,92vw)', padding: 22, borderRadius: 18, background: '#1c1d24', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <h2 id="au-title" style={{ margin: 0 }}>Log in</h2>
+          <input id="au-user" style={fld} placeholder="Username or email" autoComplete="username" />
+          <input id="au-email" style={fld} placeholder="Email" autoComplete="email" />
+          <input id="au-disp" style={fld} placeholder="Display name (3-18 characters)" maxLength={18} />
+          <input id="au-pass" style={fld} type="password" placeholder="Password" autoComplete="current-password" />
+          <div id="au-msg" style={{ minHeight: 18, fontSize: 13, color: '#ffb4b4' }} />
+          <button id="au-submit" type="button" style={{ ...fld, background: '#8b78e6', fontWeight: 700, cursor: 'pointer' }}>Log in</button>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <button id="au-tab-login" type="button" style={lnk}>Log in</button>
+            <button id="au-tab-reg" type="button" style={lnk}>Create account</button>
+            <button id="au-tab-forgot" type="button" style={lnk}>Forgot password?</button>
+          </div>
+        </div>
+      </div>
+
+      {/* PROFILE */}
+      <div id="profile" style={{ display: 'none', position: 'fixed', inset: 0, zIndex: 60, alignItems: 'flex-end', justifyContent: 'center', background: 'rgba(0,0,0,.6)', padding: 'max(12px, env(safe-area-inset-top)) 12px max(12px, env(safe-area-inset-bottom))' }}>
+        <div style={{ width: 'min(420px, 100%)', maxHeight: '100%', overflowY: 'auto', padding: 20, borderRadius: 22, background: 'linear-gradient(145deg,#222225,#151517)', border: '1px solid rgba(255,255,255,.1)', color: '#fff', display: 'flex', flexDirection: 'column', gap: 12, boxShadow: '0 25px 80px #0009' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div style={{ position: 'relative', width: 72, height: 72, flexShrink: 0, borderRadius: '50%', overflow: 'hidden', background: '#3a3740', display: 'grid', placeItems: 'center', fontSize: 28, fontWeight: 700 }}>
+              <span id="pf-ini" />
+              <img id="pf-img" alt="" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'none' }} />
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <strong id="pf-name" style={{ display: 'block', fontSize: 18, overflow: 'hidden', textOverflow: 'ellipsis' }} />
+              <span id="pf-user" style={{ fontSize: 12, color: '#b8b3a8' }} />
+            </div>
+            <button id="pf-close" type="button" aria-label="Close profile" style={{ ...lnk, fontSize: 26, color: '#fff', minHeight: 44, minWidth: 44 }}>×</button>
+          </div>
+          <label style={pfBtn}>
+            📷 Change profile picture
+            <input id="pf-file" type="file" accept="image/*" style={{ display: 'none' }} />
+          </label>
+          <button id="pf-looks" type="button" style={pfBtn}>🎨 Edit looks</button>
+          <button id="pf-out" type="button" style={{ ...pfBtn, color: '#ffb4b4' }}>Log out</button>
+          <div id="pf-msg" style={{ minHeight: 16, fontSize: 12, color: '#e8c27a', textAlign: 'center' }} />
+        </div>
+      </div>
+
       {/* CHARACTER ENTRY */}
       <div id="start">
-        <div className="box entry-card">
+        <div className="box entry-card" style={{ maxHeight: '92vh', overflowY: 'auto' }}>
 
           <div className="entry-logo">
             <Icon name="image" size={27} />
@@ -279,6 +332,24 @@ export default function App() {
               A shared space for art, creativity, and connection.
               Explore paintings and meet other visitors.
             </p>
+          </div>
+
+          <div id="regbox" style={{ display: 'flex', flexDirection: 'column', gap: 8, margin: '4px 0 12px' }}>
+            <input id="rg-user" style={fld} placeholder="Username" autoComplete="username" />
+            <input id="rg-email" style={fld} placeholder="Email" autoComplete="email" />
+            <input id="rg-pass" style={fld} type="password" placeholder="Password" autoComplete="new-password" />
+            <div id="rg-msg" style={{ minHeight: 16, fontSize: 13, color: '#ffb4b4' }} />
+            <button id="rg-login" type="button" style={lnk}>Already have an account? Log in</button>
+          </div>
+
+          <div id="acct" style={{ display: 'none', alignItems: 'center', gap: 10, margin: '10px 0' }}>
+            <img id="acct-img" alt="" style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover', background: '#333' }} />
+            <strong id="acct-name" style={{ flex: 1 }} />
+            <label style={{ cursor: 'pointer', fontSize: 12, textDecoration: 'underline' }}>
+              Change picture
+              <input id="acct-file" type="file" accept="image/*" style={{ display: 'none' }} />
+            </label>
+            <button id="acct-out" type="button" style={lnk}>Log out</button>
           </div>
 
           <div className="field-group">
@@ -299,6 +370,8 @@ export default function App() {
               <button type="button" data-g="n">Neutral</button>
             </div>
           </div>
+
+          <canvas id="lookprev" style={{ width: '100%', height: 220, borderRadius: 14, background: 'rgba(255,255,255,.06)', touchAction: 'none', cursor: 'grab', display: 'block', marginBottom: 12 }} />
 
           <div className="customization-group">
             <div className="lab">Skin tone</div>
@@ -347,6 +420,8 @@ export default function App() {
             <span>Select a painting from your device</span>
             <input type="file" id="file" accept="image/*" />
           </label>
+
+          <div id="fprev" style={{ display: 'flex', flexWrap: 'wrap', gap: 8, margin: '10px 0' }} />
 
           <div className="field-group">
             <label htmlFor="ttl">Painting title</label>

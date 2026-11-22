@@ -30,6 +30,8 @@ def num(v):
 
 @require_http_methods(['POST'])
 def assets(request):
+    if not request.user.is_authenticated:
+        return HttpResponse(status=401)
     b = request.body
     if len(b) < 8 or len(b) > MAX_IMAGE:
         return HttpResponse(status=400)
@@ -60,6 +62,8 @@ def paintings(request):
 def painting(request, pid):
     pid = re.sub(r'[^\w-]', '', pid)[:64]
     if request.method == 'PUT':
+        if not request.user.is_authenticated:
+            return HttpResponse(status=401)
         try:
             b = json.loads(request.body or b'{}')
         except ValueError:
@@ -73,14 +77,14 @@ def painting(request, pid):
             return HttpResponse(status=409)
         Painting.objects.create(
             id=pid, asset=asset, title=str(b.get('title') or '')[:60], artist=str(b.get('artist') or '')[:40],
-            w=num(b.get('w')), h=num(b.get('h')), owner=str(b.get('owner') or '')[:40],
+            w=num(b.get('w')), h=num(b.get('h')), owner=str(request.user.pk),
             created=int(time.time() * 1000))
         notify()
         return HttpResponse(status=204)
     p = Painting.objects.filter(pk=pid).first()
     if not p:
         return HttpResponse(status=404)
-    if p.owner != request.GET.get('owner'):
+    if not request.user.is_authenticated or p.owner != str(request.user.pk):
         return HttpResponse(status=403)
     Asset.objects.filter(pk=p.asset).delete()
     p.delete()

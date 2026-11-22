@@ -1,11 +1,12 @@
 import asyncio
 import json
 import uuid
+from channels.db import database_sync_to_async
 
 from channels.generic.websocket import AsyncWebsocketConsumer
 
 CLIENTS = {}          # connection id -> presence state (x, z, ry, name, look, emote...)
-KEYS = ('x', 'z', 'y', 'ry', 'r', 'g', 'sk', 'hr', 'hu', 'w', 'em', 'name', 'pit', 'rp', 'mic')
+KEYS = ('x', 'z', 'y', 'ry', 'r', 'g', 'sk', 'hr', 'hu', 'w', 'em', 'pit', 'rp', 'mic', 'eq', 'et')
 CHANNELS = {}         # connection id -> channel name, used to send call setup messages to one person
 _dirty = False
 _task = None
@@ -26,6 +27,8 @@ class GalleryConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         global _task
         self.pid = uuid.uuid4().hex[:8]
+        u = self.scope.get('user')
+        self.dname = await database_sync_to_async(lambda: u.profile.display_name)() if u and u.is_authenticated else 'Guest'
         CLIENTS[self.pid] = {}
         CHANNELS[self.pid] = self.channel_name
         await self.channel_layer.group_add('gallery', self.channel_name)
@@ -63,8 +66,9 @@ class GalleryConsumer(AsyncWebsocketConsumer):
                         v = v[:24]
                     if v is None or isinstance(v, (str, int, float)):
                         st[k] = v
+            st['name'] = self.dname
             _dirty = True
-        elif t in ('chat', 'react') and isinstance(m.get('data'), dict) and len(json.dumps(m['data'])) < 600:
+        elif t in ('chat', 'react', 'act') and isinstance(m.get('data'), dict) and len(json.dumps(m['data'])) < 600:
             
             await self.channel_layer.group_send(
                 'gallery', {'type': 'relay', 'payload': {'t': t, 'id': self.pid, 'data': m['data']}})

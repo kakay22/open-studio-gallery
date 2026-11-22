@@ -23,7 +23,7 @@ export default function startGallery() {
     EMO.forEach(e => { const b = document.createElement('button'); b.className = 'g e'; b.textContent = e; b.onclick = () => react(e); $('emo').append(b) });
     [['🙌', () => setEmote('clap')], ['😆', () => setEmote('laugh')], ['👉', () => setEmote('point')], ['🆗', () => setEmote('thumb')], ['🪑', () => setEmote('sit')], ['💃', () => setEmote('dance')], ['📷', () => togglePhoto()]].forEach(([i, f]) => { const b = document.createElement('button'); b.className = 'g e'; b.textContent = i; b.onclick = f; $('emo').append(b) });
     function standUp() { sitting = false; if (emote === 'sit') emote = null; pz = Math.min(pz + 1.4, D / 2 - 1); setPresence(true) }
-    const ONESHOT = { clap: 2600, laugh: 2600, point: 3000, thumb: 2400 }; let emoTimer = 0;
+    const ONESHOT = { clap: 2600, laugh: 2600, point: 3000, thumb: 2400, punch: 500, bow: 1100 }; let emoTimer = 0;
     function setEmote(n) {
       clearTimeout(emoTimer);
       if (emote === n) { if (n === 'sit') standUp(); else emote = null }
@@ -37,7 +37,8 @@ export default function startGallery() {
     function toggleDance() { setEmote('dance') }
     function trySit() { }
     $('dn').onclick = toggleDance;
-    $('look').onclick = () => { document.exitPointerLock?.(); $('start').style.display = 'flex'; $('go').textContent = 'Save look'; const p = document.querySelector('#start p'); if (p) p.style.display = 'none' };
+    const mst = document.createElement('style'); mst.textContent = 'body.menu #top,body.menu #panel{display:none!important}'; document.head.append(mst); document.body.classList.add('menu');
+    $('look').onclick = () => { document.exitPointerLock?.(); document.body.classList.add('menu'); $('start').style.display = 'flex'; $('go').textContent = 'Save look'; const p = document.querySelector('#start p'); if (p) p.style.display = 'none' };
 
     // ---- scene
     const renderer = new THREE.WebGLRenderer({ antialias: !LOW || devicePixelRatio < 2, powerPreference: 'high-performance' }); renderer.setPixelRatio(Math.min(devicePixelRatio, LOW ? 1.75 : 2)); renderer.outputEncoding = THREE.sRGBEncoding; renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -1222,14 +1223,16 @@ export default function startGallery() {
     // ---- player
     let yaw = 0, pitch = 0, px = 0, pz = 9.5; const keys = {}; let started = false, locked = false, mv = { x: 0, y: 0 };
     const touch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
-    addEventListener('keydown', e => { if (!started || document.activeElement.tagName === 'INPUT') return; keys[e.code] = true; if (e.code === 'KeyX') removeMine(); if (e.code === 'KeyF') wave(); if (e.code === 'KeyG') setEmote('dance'); if (e.code === 'KeyE') setEmote('sit'); if (e.code === 'KeyC') setEmote('clap'); if (e.code === 'KeyV') setEmote('laugh'); if (e.code === 'KeyB') setEmote('point'); if (e.code === 'KeyN') setEmote('thumb'); if (e.code === 'KeyP') togglePhoto(); if (e.code === 'Space' && photoOn) shoot(); if (e.code === 'KeyM') toggleMic() });
+    addEventListener('keydown', e => { if (!started || document.activeElement.tagName === 'INPUT') return; keys[e.code] = true; if (e.code === 'KeyX') removeMine(); if (e.code === 'KeyF') wave(); if (e.code === 'KeyG') setEmote('dance'); if (e.code === 'KeyE') setEmote('sit'); if (e.code === 'KeyC') setEmote('clap'); if (e.code === 'KeyV') setEmote('laugh'); if (e.code === 'KeyB') setEmote('point'); if (e.code === 'KeyN') setEmote('thumb'); if (e.code === 'KeyP') togglePhoto(); if (e.code === 'Space' && photoOn) shoot(); if (e.code === 'KeyM') toggleMic(); if (e.code === 'KeyZ') punch(); if (e.code === 'KeyQ') shootArrow() });
     addEventListener('keydown', e => { if (started && e.key === 'Enter' && document.activeElement.tagName !== 'INPUT' && $('panel').style.display !== 'flex') { e.preventDefault(); document.exitPointerLock?.(); $('cin').focus() } });
     addEventListener('keyup', e => keys[e.code] = false);
     const cvs = renderer.domElement;
     $('go').onclick = () => {
+      if (!me) { registerFromCard(); return }
       if (touch) stick.style.display = 'block';
       myName = ($('nm').value.trim() || 'Guest ' + myId.slice(-3)); try { localStorage.setItem('gname', myName); localStorage.setItem('ggen', myGen); localStorage.setItem('glook', JSON.stringify(myLook)) } catch (e) { }
-      $('start').style.display = 'none'; started = true; $('chat').style.display = 'block'; $('emo').style.display = 'flex'; if (touch) $('cross').style.display = 'block'; try { ctxA() } catch (e) { } setPresence(true); if (!touch) cvs.requestPointerLock?.()
+      if (me) api('/api/profile', { method: 'POST', body: JSON.stringify({ look: { g: myGen, sk: myLook.sk, hr: myLook.hr, hu: myLook.hu } }) }).catch(() => { });
+      $('start').style.display = 'none'; document.body.classList.remove('menu'); started = true; $('chat').style.display = 'block'; $('emo').style.display = 'flex'; $('act').style.display = 'flex'; if (touch) $('cross').style.display = 'block'; try { ctxA() } catch (e) { } setPresence(true); if (!touch) cvs.requestPointerLock?.()
     };
     cvs.addEventListener('click', () => { if (started && !touch && !locked) cvs.requestPointerLock?.() });
     document.addEventListener('pointerlockchange', () => locked = document.pointerLockElement === cvs);
@@ -1663,6 +1666,10 @@ export default function startGallery() {
       };
       [P.lLeg, P.lShin] = leg(-1);[P.rLeg, P.rShin] = leg(1);
 
+      const bow = new THREE.Group(); bow.visible = false;
+      const arc = mk(geoOf('bowArc', () => new THREE.TorusGeometry(.35, .012, 6, 18, Math.PI)), MT(0x6b4a2a, .6)); arc.rotation.set(0, Math.PI / 2, -Math.PI / 2);
+      const str = mk(geoOf('bowStr', () => new THREE.CylinderGeometry(.003, .003, .7, 4)), MT(0xeeeeee, .5));
+      bow.add(arc, str); bow.position.set(-.22, 1.34, -.25); g.add(bow); g.userData.bow = bow;
       const lb = label(name); lb.position.y = 2.1; g.add(lb); g.userData.pr = P; g.userData.lb = lb; scene.add(g); g.traverse(o => { if (o.isMesh) o.castShadow = o.receiveShadow = true }); return g
     }
     function makeAvatarOld(name, hue) {
@@ -1861,7 +1868,7 @@ export default function startGallery() {
         }
         a.mic = !!d.mic; setSpeaking(a, !!a.spk && a.mic);
         const headPitch = Number(d.pit ?? d.rp ?? 0);
-        a.tp = THREE.MathUtils.clamp(headPitch * 1.5, -1.2, 1.2); a.em = ['dance', 'sit', 'clap', 'laugh', 'point', 'thumb'].includes(d.em) ? d.em : null; if ((d.w || 0) !== a.wv) { a.wv = d.w || 0; a.wt = performance.now() }
+        a.tp = THREE.MathUtils.clamp(headPitch * 1.5, -1.2, 1.2); a.em = ['dance', 'sit', 'clap', 'laugh', 'point', 'thumb', 'punch', 'bow'].includes(d.em) ? d.em : null; if ((d.w || 0) !== a.wv) { a.wv = d.w || 0; a.wt = performance.now() }
       }
       for (const [k, a] of avatars) if (!seen.has(k)) { scene.remove(a.g); avatars.delete(k) }
       syncRtc();
@@ -1977,12 +1984,15 @@ export default function startGallery() {
 
 
       const EW = a.ew = a.ew || {};
-      for (const n of ['clap', 'laugh', 'point', 'thumb']) EW[n] = (EW[n] || 0) + ((a.em === n ? 1 : 0) - (EW[n] || 0)) * Math.min(1, dt * 8);
+      for (const n of ['clap', 'laugh', 'point', 'thumb', 'punch', 'bow']) EW[n] = (EW[n] || 0) + ((a.em === n ? 1 : 0) - (EW[n] || 0)) * Math.min(1, dt * 8);
       const mixR = (o, ax, v, w) => { if (w > .01) o.rotation[ax] = o.rotation[ax] * (1 - w) + v * w };
       if (EW.clap > .01) { const w = EW.clap, b = Math.sin(t * 16) * .5 + .5; mixR(P.lArm, 'x', 1.25, w); mixR(P.rArm, 'x', 1.25, w); mixR(P.lFore, 'x', 1.1, w); mixR(P.rFore, 'x', 1.1, w); mixR(P.lArm, 'z', .12 + b * .28, w); mixR(P.rArm, 'z', -(.12 + b * .28), w) }
       if (EW.laugh > .01) { const w = EW.laugh, sh = Math.sin(t * 24); mixR(P.torso, 'x', .12 + sh * .05, w); mixR(P.lArm, 'x', .6, w); mixR(P.rArm, 'x', .6, w); mixR(P.lFore, 'x', 1.3, w); mixR(P.rFore, 'x', 1.3, w); P.body.position.y += Math.abs(sh) * .035 * w; P.head.rotation.x += .3 * w }
       if (EW.point > .01) { const w = EW.point; mixR(P.rArm, 'x', 1.55, w); mixR(P.rFore, 'x', .1, w) }
       if (EW.thumb > .01) { const w = EW.thumb; mixR(P.rArm, 'x', .9, w); mixR(P.rFore, 'x', 1.7, w); mixR(P.rArm, 'z', .15, w); P.rHand.rotation.z = Math.sin(t * 10) * .15 * w }
+      if (EW.punch > .01) { const w = EW.punch, j = Math.sin(t * 22) * .5 + .5; mixR(P.rArm, 'x', .6 + j * .95, w); mixR(P.rFore, 'x', .1, w); mixR(P.lArm, 'x', .9, w); mixR(P.lFore, 'x', 1.5, w); mixR(P.torso, 'y', -.35 * (1 - j * .6), w) }
+      if (EW.bow > .01) { const w = EW.bow; mixR(P.lArm, 'x', 1.55, w); mixR(P.lFore, 'x', .05, w); mixR(P.rArm, 'x', 1.4, w); mixR(P.rArm, 'z', .35, w); mixR(P.rFore, 'x', 1.9, w) }
+      if (g.userData.bow) g.userData.bow.visible = (EW.bow || 0) > .3;
       // WAVE: upper arm out to the side, elbow bent so the forearm points up, forearm swings side to side
       const el = a.wt ? performance.now() - a.wt : 9999;
       const r = Math.max(0, Math.min(1, el / 250, (2200 - el) / 250));
@@ -2053,6 +2063,29 @@ export default function startGallery() {
     }
     $('file').multiple = true;
     $('file').accept = 'image/*';
+    let prevUrls = [];
+    function renderFilePreview() {
+      prevUrls.forEach(u => URL.revokeObjectURL(u)); prevUrls = [];
+      const box = $('fprev'); box.innerHTML = '';
+      const files = Array.from($('file').files);
+      const area = document.querySelector('.upload-area');
+      if (area) {
+        area.querySelector('strong').textContent = files.length ? files.length + ' image' + (files.length > 1 ? 's' : '') + ' selected ✓' : 'Choose an image';
+        area.style.borderColor = files.length ? '#6dff8c' : '';
+      }
+      files.forEach((f, i) => {
+        const u = URL.createObjectURL(f); prevUrls.push(u);
+        const w = document.createElement('div');
+        w.style.cssText = 'position:relative;width:72px;height:72px;border-radius:10px;overflow:hidden;border:2px solid #6dff8c';
+        const im = document.createElement('img'); im.src = u; im.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block';
+        const ck = document.createElement('span'); ck.textContent = '✓';
+        ck.style.cssText = 'position:absolute;right:3px;top:3px;width:18px;height:18px;border-radius:50%;background:#6dff8c;color:#111;font:700 12px/18px system-ui;text-align:center';
+        const nm = document.createElement('small'); nm.textContent = i + 1;
+        nm.style.cssText = 'position:absolute;left:4px;bottom:2px;color:#fff;font:700 11px system-ui;text-shadow:0 1px 3px #000';
+        w.append(im, ck, nm); box.append(w);
+      });
+    }
+    $('file').addEventListener('change', renderFilePreview);
 
     $('save').onclick = async () => {
       const files = Array.from($('file').files);
@@ -2093,7 +2126,6 @@ export default function startGallery() {
               artist,
               w,
               h,
-              owner: myId,
               createdAt: Date.now()
             };
 
@@ -2130,6 +2162,7 @@ export default function startGallery() {
         if (uploaded > 0) {
           $('file').value = '';
           $('ttl').value = '';
+          renderFilePreview();
         }
 
       } finally {
@@ -2140,6 +2173,11 @@ export default function startGallery() {
 
     // ---- network (own Node server)
     const API = (import.meta.env.VITE_API || '').replace(/\/$/, '');
+    const csrf = () => (document.cookie.match(/csrftoken=([^;]+)/) || [])[1] || '';
+    const api = (path, o = {}) => fetch(API + path, {
+      credentials: 'include', ...o,
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf(), ...(o.headers || {}) }
+    });
     const assetUrl = u => {
       if (!u) return u;
       try {
@@ -2149,7 +2187,7 @@ export default function startGallery() {
       return u.startsWith('http') ? u : API + u;
     };
     const wsUrl = import.meta.env.VITE_WS || ((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws');
-    let ws = null, wsId = null, lastState = {}, peersCb = null, snapCb = null; const handlers = { chat: [], react: [], rtc: [] };
+    let ws = null, wsId = null, lastState = {}, peersCb = null, snapCb = null; const handlers = { chat: [], react: [], rtc: [], act: [] };
     const wsend = o => { if (ws && ws.readyState === 1) ws.send(JSON.stringify(o)) };
     const roomS = {
       presence(p) { lastState = { ...lastState, ...p }; wsend({ t: 'state', s: p }); return Promise.resolve() },
@@ -2182,14 +2220,14 @@ export default function startGallery() {
     const dbS = {
       collection: () => ({
         onSnapshot(cb) { snapCb = cb; loadPaintings() }, doc: id => ({
-          set: async rec => { const r = await fetch(API + '/api/paintings/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(rec) }); if (!r.ok) throw new Error('Save failed (' + r.status + ')') },
-          delete: async () => { await fetch(API + '/api/paintings/' + id + '?owner=' + encodeURIComponent(myId), { method: 'DELETE' }) }
+          set: async rec => { const r = await api('/api/paintings/' + id, { method: 'PUT', body: JSON.stringify(rec) }); if (!r.ok) throw new Error('Save failed (' + r.status + ')') },
+          delete: async () => { await api('/api/paintings/' + id, { method: 'DELETE' }) }
         })
       })
     };
     const assetsS = {
       upload: async blob => {
-        const r = await fetch(API + '/api/assets', {
+        const r = await api('/api/assets', {
           method: 'POST',
           headers: { 'Content-Type': 'image/jpeg' },
           body: blob
@@ -2220,6 +2258,103 @@ export default function startGallery() {
     }
     setInterval(() => { if (!document.hidden) loadPaintings() }, 20000);
     document.addEventListener('visibilitychange', () => { if (!document.hidden) { connect(); loadPaintings() } }); addEventListener('online', () => { connect(); loadPaintings() });
+    const resetToken = new URLSearchParams(location.search).get('reset');
+    function authView(m) {
+      $('au-title').textContent = { login: 'Log in', reg: 'Create account', forgot: 'Reset password', reset: 'New password' }[m];
+      $('au-user').placeholder = m === 'login' ? 'Username or email' : 'Username';
+      $('au-user').style.display = m === 'login' || m === 'reg' ? '' : 'none';
+      $('au-email').style.display = m === 'reg' || m === 'forgot' ? '' : 'none';
+      $('au-disp').style.display = m === 'reg' ? '' : 'none';
+      $('au-pass').style.display = m === 'forgot' ? 'none' : '';
+      $('au-submit').textContent = { login: 'Log in', reg: 'Register', forgot: 'Send reset link', reset: 'Save password' }[m];
+      $('au-submit').dataset.mode = m; $('au-msg').textContent = '';
+    }
+    $('au-tab-login').onclick = () => authView('login');
+    $('au-tab-reg').onclick = () => { $('auth').style.display = 'none' };
+    $('rg-login').onclick = () => { $('auth').style.display = 'flex'; authView('login') };
+    async function registerFromCard() {
+      const msg = $('rg-msg'), v = id => $(id).value.trim(), name = v('nm'), user = v('rg-user');
+      const say = (t, bad = true) => { msg.style.color = bad ? '#ffb4b4' : '#e8c27a'; msg.textContent = t; msg.scrollIntoView({ block: 'nearest' }) };
+      if (!user || !v('rg-email') || !$('rg-pass').value) { say('Fill in username, email and password.'); return }
+      say('Creating account…', false);
+      try {
+        await api('/api/me').catch(() => { });   // makes sure the CSRF cookie exists
+        const r = await api('/api/register', { method: 'POST', body: JSON.stringify({ username: user, email: v('rg-email'), displayName: name || user, password: $('rg-pass').value, look: { g: myGen, sk: myLook.sk, hr: myLook.hr, hu: myLook.hu } }) });
+        let j = {}; try { j = await r.json() } catch (e) { }
+        if (!r.ok) { say(j.error || ('Server error ' + r.status + (r.status === 403 ? ' (CSRF: your page and Django are on different origins, proxy /api through Vite)' : ''))); return }
+        me = j.user; applyMe(); layout();
+        if (ws) ws.close();   // reconnects with the new session so your name is correct
+        $('go').click();      // now enters the gallery as a logged-in player
+      } catch (e) { say('Cannot reach the server. Is Django running, and is /api proxied?') }
+    }
+    $('au-tab-forgot').onclick = () => authView('forgot');
+    $('au-submit').onclick = async () => {
+      const mode = $('au-submit').dataset.mode, msg = $('au-msg'), v = id => $(id).value.trim(), pw = $('au-pass').value;
+      const req = {
+        login: ['/api/login', { username: v('au-user'), password: pw }],
+        reg: ['/api/register', { username: v('au-user'), email: v('au-email'), displayName: v('au-disp') || v('au-user'), password: pw, look: { g: myGen, sk: myLook.sk, hr: myLook.hr, hu: myLook.hu } }],
+        forgot: ['/api/reset', { email: v('au-email') }],
+        reset: ['/api/reset/confirm', { token: resetToken, password: pw }]
+      }[mode];
+      try {
+        const r = await api(req[0], { method: 'POST', body: JSON.stringify(req[1]) });
+        if (mode === 'forgot') { msg.textContent = 'If that email exists, a reset link was sent.'; return }
+        if (mode === 'reset') {
+          if (r.ok) { history.replaceState(null, '', location.pathname); authView('login'); $('au-msg').textContent = 'Password changed. Log in now.' }
+          else msg.textContent = (await r.json()).error || 'Failed';
+          return;
+        }
+        const j = await r.json();
+        if (!r.ok) { msg.textContent = j.error || 'Failed'; return }
+        location.reload();   // reload so the websocket reconnects with your session
+      } catch (e) { msg.textContent = 'Network error' }
+    };
+    $('acct-out').onclick = async () => { try { await api('/api/logout', { method: 'POST' }) } catch (e) { } location.reload() };
+    async function uploadAvatar(f, input) {
+      if (!f) return;
+      const msg = $('pf-msg'); msg.textContent = 'Uploading…';
+      try {
+        const { blob } = await shrink(f), up = await assetsS.upload(blob);
+        const r = await api('/api/profile', { method: 'POST', body: JSON.stringify({ avatarId: up.id }) }), j = await r.json();
+        if (!r.ok || !j.user) throw new Error(j.error || r.status);
+        me = j.user; $('acct-img').src = assetUrl(me.avatarUrl); fillProfile(); msg.textContent = 'Picture updated ✓';
+      } catch (err) { console.error(err); msg.textContent = 'Upload failed. Try a smaller image.' }
+      if (input) input.value = '';
+    }
+    $('acct-file').onchange = e => uploadAvatar(e.target.files[0], e.target);
+    let me = null;
+    const applyMe = () => {
+      if (me) {
+        myId = String(me.id); myName = me.displayName; $('nm').value = myName; $('nm').readOnly = true;
+        if (me.look && me.look.g) {
+          myGen = me.look.g; if (me.look.sk != null) myLook.sk = me.look.sk; if (me.look.hr != null) myLook.hr = me.look.hr; if (me.look.hu != null) myLook.hu = me.look.hu;
+          paintGen(); for (const id of ['skin', 'hair', 'hue']) $(id).innerHTML = '';
+          sw('skin', SKc, 'sk'); sw('hair', HRc, 'hr'); sw('hue', HUc, 'hu', true);
+        }
+        $('acct').style.display = 'flex'; $('acct-name').textContent = me.displayName;
+        $('regbox').style.display = 'none'; $('go').textContent = 'Enter gallery';
+        if (me.avatarUrl) $('acct-img').src = assetUrl(me.avatarUrl);
+      } else {
+        $('regbox').style.display = 'flex'; $('go').textContent = 'Create account & enter';
+        if (resetToken) { $('auth').style.display = 'flex'; authView('reset') } else authView('login');
+      }
+    };
+    api('/api/me').then(r => r.json()).then(j => { me = j.user }).catch(() => { }).then(() => { applyMe(); layout() });
+    // ---- profile sheet
+    const profEl = $('profile');
+    function fillProfile() {
+      if (!me) return;
+      $('pf-name').textContent = me.displayName; $('pf-user').textContent = '@' + me.username;
+      $('pf-ini').textContent = (me.displayName || '?')[0].toUpperCase();
+      const im = $('pf-img'); im.style.display = me.avatarUrl ? 'block' : 'none'; if (me.avatarUrl) im.src = assetUrl(me.avatarUrl);
+      $('pf-msg').textContent = '';
+    }
+    $('prof').onclick = () => { if (!me) return; document.exitPointerLock?.(); for (const k in keys) keys[k] = false; fillProfile(); profEl.style.display = 'flex' };
+    $('pf-close').onclick = () => { profEl.style.display = 'none' };
+    profEl.addEventListener('pointerdown', e => { if (e.target === profEl) profEl.style.display = 'none' });
+    $('pf-looks').onclick = () => { profEl.style.display = 'none'; $('look').click() };
+    $('pf-out').onclick = () => $('acct-out').click();
+    $('pf-file').onchange = e => uploadAvatar(e.target.files[0], e.target);
     room = roomS; db = dbS; assets = assetsS; local = false;
     db.collection('paintings').onSnapshot(s => { paintings = s.docs.map(x => ({ id: x.id, ...x.data() })); layout() });
     room.onPeers(applyPeers);
@@ -2633,13 +2768,145 @@ export default function startGallery() {
     }
     enableShadows();
 
+    // ---- live 3D avatar preview (start / customize window)
+    {
+      const pc = $('lookprev');
+      if (pc) {
+        const pr = new THREE.WebGLRenderer({ canvas: pc, antialias: true, alpha: true });
+        pr.setPixelRatio(Math.min(devicePixelRatio, 2)); pr.outputEncoding = THREE.sRGBEncoding;
+        const ps = new THREE.Scene();
+        const pcam = new THREE.PerspectiveCamera(32, 1, .1, 20);
+        pcam.position.set(0, 1.05, 4.6); pcam.lookAt(0, .95, 0);
+        ps.add(new THREE.HemisphereLight(0xfff1dc, 0x3a342d, 1));
+        const dl = new THREE.DirectionalLight(0xffffff, .8); dl.position.set(2, 4, 3); ps.add(dl);
+        let pav = null, psig = '', spin = 0, drag = false, lx = 0, pw = 0, ph = 0;
+        pc.addEventListener('pointerdown', e => { drag = true; lx = e.clientX; pc.setPointerCapture(e.pointerId) });
+        pc.addEventListener('pointermove', e => { if (drag) { spin += (e.clientX - lx) * .012; lx = e.clientX } });
+        pc.addEventListener('pointerup', () => drag = false);
+        (function ploop() {
+          requestAnimationFrame(ploop);
+          if ($('start').style.display === 'none') return;
+          const w = pc.clientWidth, h = pc.clientHeight; if (!w || !h) return;
+          if (w !== pw || h !== ph) { pw = w; ph = h; pr.setSize(w, h, false); pcam.aspect = w / h; pcam.updateProjectionMatrix() }
+          const sig = [myGen, myLook.sk, myLook.hr, myLook.hu].join();
+          if (sig !== psig) {
+            psig = sig; if (pav) ps.remove(pav);
+            const g = makeAvatar('', myLook.hu, myGen, seedOf(myId), myLook);
+            scene.remove(g); g.userData.lb.visible = false; ps.add(g); pav = g;
+          }
+          if (!drag) spin += .008;
+          pav.rotation.y = Math.PI + spin;
+          pr.render(ps, pcam);
+        })();
+      }
+    }
+
+    // ---- combat: punch + bow
+    const cst = document.createElement('style');
+    cst.textContent = 'body.menu #act,body.photo #act{display:none!important}#act button:active{transform:scale(.9)}';
+    document.head.append(cst);
+    const hurtEl = document.createElement('div');
+    hurtEl.style.cssText = 'position:fixed;inset:0;pointer-events:none;background:radial-gradient(transparent 35%,rgba(255,0,0,.6));opacity:0;transition:opacity .3s;z-index:31';
+    document.body.append(hurtEl);
+    const actBox = document.createElement('div'); actBox.id = 'act';
+    actBox.style.cssText = 'position:fixed;right:max(14px,env(safe-area-inset-right));bottom:calc(max(18px,env(safe-area-inset-bottom)) + 66px);z-index:19;display:none;flex-direction:column;gap:10px';
+    const cd = { punch: 0, bow: 0 };
+    function mkAct(icon, label, fn) {
+      const b = document.createElement('button'); b.type = 'button'; b.textContent = icon; b.title = label; b.setAttribute('aria-label', label);
+      b.style.cssText = 'width:62px;height:62px;min-height:0;padding:0;border-radius:50%;font-size:30px;line-height:1;background:rgba(28,28,32,.94);border:1px solid rgba(255,255,255,.18);color:#fff;box-shadow:0 8px 25px #0006;touch-action:manipulation;transition:opacity .15s';
+      b.addEventListener('pointerdown', e => { e.preventDefault(); fn() }); actBox.append(b); return b;
+    }
+    const bPunch = mkAct('👊', 'Punch (Z)', () => punch()), bBow = mkAct('🏹', 'Bow (Q)', () => shootArrow());
+    document.body.append(actBox);
+    function ready(k, ms) {
+      const n = performance.now(); if (n < cd[k]) return false; cd[k] = n + ms;
+      const b = k === 'punch' ? bPunch : bBow; b.style.opacity = '.35'; setTimeout(() => b.style.opacity = '1', ms); return true;
+    }
+    const canAct = () => started && !evBusy && !photoOn && !talkOpen;
+
+    function punch() {
+      if (!canAct() || !ready('punch', 650)) return;
+      setEmote('punch'); sfxTone(220, 90, .12, .6, 'triangle');
+      const fx = -Math.sin(yaw), fz = -Math.cos(yaw); let best = null, bd = 1.8;
+      for (const [id, a] of avatars) {
+        const dx = a.g.position.x - px, dz = a.g.position.z - pz, d = Math.hypot(dx, dz);
+        if (d > bd || d < .01 || (dx * fx + dz * fz) / d < .45) continue;
+        best = id; bd = d;
+      }
+      if (room) room.emit('act', { k: 'punch', to: best }).catch(() => { });
+      if (best) { const a = avatars.get(best); if (a) spawnFloat(a.g, '💥') }
+    }
+
+    const arrows = [], arrowShaft = new THREE.CylinderGeometry(.012, .012, .8, 6).rotateX(Math.PI / 2), arrowTip = new THREE.ConeGeometry(.035, .12, 6).rotateX(Math.PI / 2);
+    const arrowMatA = new THREE.MeshBasicMaterial({ color: 0xd8c7a0 }), arrowMatB = new THREE.MeshBasicMaterial({ color: 0xbfc3c8 });
+    function spawnArrow(o, d, len) {
+      if (arrows.length > 20) return;
+      const g = new THREE.Group(), tip = new THREE.Mesh(arrowTip, arrowMatB); tip.position.z = .45;
+      g.add(new THREE.Mesh(arrowShaft, arrowMatA), tip);
+      g.position.set(o[0], o[1], o[2]); g.lookAt(o[0] + d[0], o[1] + d[1], o[2] + d[2]); scene.add(g);
+      arrows.push({ g, o, d, len, s: 0 });
+    }
+    function arrowTick(dt) {
+      for (let i = arrows.length - 1; i >= 0; i--) {
+        const a = arrows[i]; a.s += 30 * dt; const s = Math.min(a.s, a.len);
+        a.g.position.set(a.o[0] + a.d[0] * s, a.o[1] + a.d[1] * s, a.o[2] + a.d[2] * s);
+        if (a.s >= a.len + 12) { scene.remove(a.g); arrows.splice(i, 1) }
+      }
+    }
+    function shootArrow() {
+      if (!canAct() || !ready('bow', 1000)) return;
+      setEmote('bow'); sfxTone(900, 200, .15, .5, 'sawtooth');
+      const cp = Math.cos(pitch), D3 = [-Math.sin(yaw) * cp, Math.sin(pitch), -Math.cos(yaw) * cp], O = [px, EYE + sy - .1, pz];
+      let len = 30, to = null;
+      for (let s = .5; s < len; s += .5) {
+        const x = O[0] + D3[0] * s, y = O[1] + D3[1] * s, z = O[2] + D3[2] * s;
+        if (collidesWithWall(x, z, .02) || y < 0 || y > H) { len = s; break }
+      }
+      for (const [id, a] of avatars) {
+        const v = [a.g.position.x - O[0], a.g.position.y + 1.1 - O[1], a.g.position.z - O[2]];
+        const t = v[0] * D3[0] + v[1] * D3[1] + v[2] * D3[2]; if (t < .5 || t > len) continue;
+        if (v[0] * v[0] + v[1] * v[1] + v[2] * v[2] - t * t < .22) { len = t; to = id }
+      }
+      const r2 = n => +n.toFixed(2), o = O.map(r2), d = D3.map(r2), l = +len.toFixed(1);
+      spawnArrow(o, d, l);
+      if (room) room.emit('act', { k: 'arrow', o, d, l, to }).catch(() => { });
+      if (to) { const a = avatars.get(to); if (a) spawnFloat(a.g, '💥') }
+    }
+
+    function hurt(from) {
+      if (!started || evBusy || photoOn) return;
+      if (sitting) standUp();
+      hurtEl.style.opacity = '1'; setTimeout(() => hurtEl.style.opacity = '0', 180);
+      sfxTone(160, 60, .2, .7, 'sawtooth');
+      const p = lastPeers.find(q => q.peer === from)?.presence;
+      if (p && p.x != null && (p.r || 0) === myRoom) {
+        let dx = px - p.x, dz = pz - p.z; const d = Math.hypot(dx, dz) || 1; dx /= d; dz /= d;
+        for (const k of [.8, .5, .25]) {
+          const nx = Math.max(-W / 2 + .9, Math.min(W / 2 - .9, px + dx * k)), nz = Math.max(-D / 2 + .9, Math.min(D / 2 - .9, pz + dz * k));
+          if (!collidesWithWall(nx, nz)) { px = nx; pz = nz; break }
+        }
+        setPresence(true);
+      }
+    }
+    const ok3 = v => Array.isArray(v) && v.length === 3 && v.every(Number.isFinite);
+    room.on('act', m => {
+      if (m.sameTab) return;
+      const d = m.data || {}, sp = lastPeers.find(q => q.peer === m.peer)?.presence;
+      if (!sp || (sp.r || 0) !== myRoom) return;
+      if (d.k === 'arrow' && ok3(d.o) && ok3(d.d) && Number.isFinite(+d.l) && +d.l > 0 && +d.l <= 31) spawnArrow(d.o, d.d, +d.l);
+      if ((d.k === 'arrow' || d.k === 'punch') && d.to) {
+        const t = avatars.get(d.to); if (t) spawnFloat(t.g, '💥');
+        if (d.to === wsId) hurt(m.peer);
+      }
+    });
+
     // ---- loop
     let last = performance.now();
     (function loop(t) {
       requestAnimationFrame(loop); const dt = Math.min(.05, (t - last) / 1000); last = t;
       if (started) { step(dt); setPresence(false); look() } else { cam.position.set(0, EYE, 6); cam.rotation.set(0, Math.sin(t / 4000) * .5, 0) }
       for (const m of spinners) m.rotation.y += dt * .5;
-      elevTick(dt); stairTick(); guideTick(); smoothAvatars(dt); receptionTick(dt); monTick(dt); ledTick(dt); escTick(dt); tvTick(dt); tickFloaters(); voiceTick(); renderer.render(scene, cam)
+      elevTick(dt); stairTick(); guideTick(); smoothAvatars(dt); receptionTick(dt); monTick(dt); ledTick(dt); escTick(dt); tvTick(dt); tickFloaters(); arrowTick(dt); voiceTick(); renderer.render(scene, cam)
     })(last);
 
   })();
