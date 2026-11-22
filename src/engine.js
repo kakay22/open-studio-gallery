@@ -2174,17 +2174,6 @@ export default function startGallery() {
     // ---- network (own Node server)
     const API = (import.meta.env.VITE_API || '').replace(/\/$/, '');
     const csrf = () => (document.cookie.match(/csrftoken=([^;]+)/) || [])[1] || '';
-    const api = (path, o = {}) => fetch(API + path, {
-      credentials: 'include', ...o,
-      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf(), ...(o.headers || {}) }
-    }); let csrfToken = '';
-
-    const csrf = () => {
-      if (csrfToken) return csrfToken;
-
-      const match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
-      return match ? decodeURIComponent(match[1]) : '';
-    };
 
     const api = async (path, o = {}) => {
       const response = await fetch(API + path, {
