@@ -1223,9 +1223,9 @@ export default function startGallery() {
     // ---- player
     let yaw = 0, pitch = 0, px = 0, pz = 9.5; const keys = {}; let started = false, locked = false, mv = { x: 0, y: 0 };
     const touch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
-    addEventListener('keydown', e => { if (!started || document.activeElement.tagName === 'INPUT') return; keys[e.code] = true; if (e.code === 'KeyX') removeMine(); if (e.code === 'KeyF') wave(); if (e.code === 'KeyG') setEmote('dance'); if (e.code === 'KeyE') setEmote('sit'); if (e.code === 'KeyC') setEmote('clap'); if (e.code === 'KeyV') setEmote('laugh'); if (e.code === 'KeyB') setEmote('point'); if (e.code === 'KeyN') setEmote('thumb'); if (e.code === 'KeyP') togglePhoto(); if (e.code === 'Space' && photoOn) shoot(); if (e.code === 'KeyM') toggleMic(); if (e.code === 'KeyZ') punch(); if (e.code === 'KeyQ') shootArrow() });
+    addEventListener('keydown', e => { if (!started || document.activeElement.tagName === 'INPUT') return; keys[e.code] = true; if (e.code === 'KeyX') removeMine(); if (e.code === 'KeyF') wave(); if (e.code === 'KeyG') setEmote('dance'); if (e.code === 'KeyE') setEmote('sit'); if (e.code === 'KeyC') setEmote('clap'); if (e.code === 'KeyV') setEmote('laugh'); if (e.code === 'KeyB') setEmote('point'); if (e.code === 'KeyN') setEmote('thumb'); if (e.code === 'KeyP') togglePhoto(); if (e.code === 'Space' && photoOn) shoot(); if (e.code === 'KeyM') toggleMic(); if (e.code === 'KeyZ') punch(); if (e.code === 'KeyQ' && !e.repeat) bowStart() });
     addEventListener('keydown', e => { if (started && e.key === 'Enter' && document.activeElement.tagName !== 'INPUT' && $('panel').style.display !== 'flex') { e.preventDefault(); document.exitPointerLock?.(); $('cin').focus() } });
-    addEventListener('keyup', e => keys[e.code] = false);
+    addEventListener('keyup', e => { keys[e.code] = false; if (e.code === 'KeyQ') bowRelease() });
     const cvs = renderer.domElement;
     $('go').onclick = () => {
       if (!me) { registerFromCard(); return }
@@ -1406,6 +1406,13 @@ export default function startGallery() {
       }
 
       { const cu = Math.abs(px) - SX0; if (Math.abs(pz - SZ) < SW && cu > 0 && cu < SRUN * SN) { const cx = px + (px < 0 ? -1 : 1) * .55 * dt; if (!collidesWithWall(cx, pz)) px = cx } }
+      // Knockback: slide away from the attacker, stopped by walls, fading out
+      if (Math.abs(kbx) + Math.abs(kbz) > .05) {
+        const nx = px + kbx * dt, nz = pz + kbz * dt;
+        if (!collidesWithWall(nx, pz)) px = nx; else kbx = 0;
+        if (!collidesWithWall(px, nz)) pz = nz; else kbz = 0;
+        const dec = Math.exp(-dt * 7); kbx *= dec; kbz *= dec;
+      }
       // Keep the player inside the outer room.
       px = Math.max(-W / 2 + .9, Math.min(W / 2 - .9, px));
       pz = Math.max(-D / 2 + .9, Math.min(D / 2 - .9, pz));
@@ -1669,7 +1676,7 @@ export default function startGallery() {
       const bow = new THREE.Group(); bow.visible = false;
       const arc = mk(geoOf('bowArc', () => new THREE.TorusGeometry(.35, .012, 6, 18, Math.PI)), MT(0x6b4a2a, .6)); arc.rotation.set(0, Math.PI / 2, -Math.PI / 2);
       const str = mk(geoOf('bowStr', () => new THREE.CylinderGeometry(.003, .003, .7, 4)), MT(0xeeeeee, .5));
-      bow.add(arc, str); bow.position.set(-.22, 1.34, -.25); g.add(bow); g.userData.bow = bow;
+      bow.add(arc, str); bow.rotation.x = -Math.PI / 2; bow.position.set(0, -.06, 0); P.lHand.add(bow); g.userData.bow = bow;
       const lb = label(name); lb.position.y = 2.1; g.add(lb); g.userData.pr = P; g.userData.lb = lb; scene.add(g); g.traverse(o => { if (o.isMesh) o.castShadow = o.receiveShadow = true }); return g
     }
     function makeAvatarOld(name, hue) {
@@ -1868,7 +1875,7 @@ export default function startGallery() {
         }
         a.mic = !!d.mic; setSpeaking(a, !!a.spk && a.mic);
         const headPitch = Number(d.pit ?? d.rp ?? 0);
-        a.tp = THREE.MathUtils.clamp(headPitch * 1.5, -1.2, 1.2); a.em = ['dance', 'sit', 'clap', 'laugh', 'point', 'thumb', 'punch', 'bow'].includes(d.em) ? d.em : null; if ((d.w || 0) !== a.wv) { a.wv = d.w || 0; a.wt = performance.now() }
+        a.tp = THREE.MathUtils.clamp(headPitch * 1.5, -1.2, 1.2); a.em = ['dance', 'sit', 'clap', 'laugh', 'point', 'thumb', 'punch', 'bow', 'draw'].includes(d.em) ? d.em : null; if ((d.w || 0) !== a.wv) { a.wv = d.w || 0; a.wt = performance.now() }
       }
       for (const [k, a] of avatars) if (!seen.has(k)) { scene.remove(a.g); avatars.delete(k) }
       syncRtc();
@@ -1936,6 +1943,7 @@ export default function startGallery() {
       P.rHand.rotation.set(0, 0, 0);
 
       P.body.position.y = Math.abs(Math.cos(a.ph)) * .035 * k + Math.sin(t * 1.8) * .006 * idle;
+      P.body.position.z = 0;
       P.torso.rotation.y = s * .12 * k;
 
       const D = a.dw = (a.dw || 0) + ((a.em === 'dance' ? 1 : 0) - (a.dw || 0)) * Math.min(1, dt * 6);
@@ -1979,15 +1987,36 @@ export default function startGallery() {
 
 
       const EW = a.ew = a.ew || {};
-      for (const n of ['clap', 'laugh', 'point', 'thumb', 'punch', 'bow']) EW[n] = (EW[n] || 0) + ((a.em === n ? 1 : 0) - (EW[n] || 0)) * Math.min(1, dt * 8);
+      for (const n of ['clap', 'laugh', 'point', 'thumb', 'punch', 'bow', 'draw']) EW[n] = (EW[n] || 0) + ((a.em === n ? 1 : 0) - (EW[n] || 0)) * Math.min(1, dt * 8);
       const mixR = (o, ax, v, w) => { if (w > .01) o.rotation[ax] = o.rotation[ax] * (1 - w) + v * w };
       if (EW.clap > .01) { const w = EW.clap, b = Math.sin(t * 16) * .5 + .5; mixR(P.lArm, 'x', 1.25, w); mixR(P.rArm, 'x', 1.25, w); mixR(P.lFore, 'x', 1.1, w); mixR(P.rFore, 'x', 1.1, w); mixR(P.lArm, 'z', .12 + b * .28, w); mixR(P.rArm, 'z', -(.12 + b * .28), w) }
       if (EW.laugh > .01) { const w = EW.laugh, sh = Math.sin(t * 24); mixR(P.torso, 'x', .12 + sh * .05, w); mixR(P.lArm, 'x', .6, w); mixR(P.rArm, 'x', .6, w); mixR(P.lFore, 'x', 1.3, w); mixR(P.rFore, 'x', 1.3, w); P.body.position.y += Math.abs(sh) * .035 * w; P.head.rotation.x += .3 * w }
       if (EW.point > .01) { const w = EW.point; mixR(P.rArm, 'x', 1.55, w); mixR(P.rFore, 'x', .1, w) }
       if (EW.thumb > .01) { const w = EW.thumb; mixR(P.rArm, 'x', .9, w); mixR(P.rFore, 'x', 1.7, w); mixR(P.rArm, 'z', .15, w); P.rHand.rotation.z = Math.sin(t * 10) * .15 * w }
-      if (EW.punch > .01) { const w = EW.punch, j = Math.sin(t * 22) * .5 + .5; mixR(P.rArm, 'x', .6 + j * .95, w); mixR(P.rFore, 'x', .1, w); mixR(P.lArm, 'x', .9, w); mixR(P.lFore, 'x', 1.5, w); mixR(P.torso, 'y', -.35 * (1 - j * .6), w) }
+      if (a.em === 'punch' && a.pe !== 'punch') a.pt = performance.now();
+      a.pe = a.em;
+      if (EW.punch > .01) {
+        // wind-up (0 to .32), snap forward (.32 to .5), recover (.5 to 1)
+        const w = EW.punch, e = Math.min(1, (performance.now() - (a.pt || 0)) / 480);
+        const wind = e < .32 ? e / .32 : 1 - Math.min(1, (e - .32) / .08);
+        const hit = e < .32 ? 0 : e < .5 ? (e - .32) / .18 : 1 - (e - .5) / .5;
+        mixR(P.rArm, 'x', -.7 * wind + 1.6 * hit, w);
+        mixR(P.rFore, 'x', 2 * wind + .1 * hit, w);
+        mixR(P.lArm, 'x', 1, w); mixR(P.lFore, 'x', 1.7, w);          // guard hand
+        mixR(P.torso, 'y', .5 * wind - .6 * hit, w);                  // body twist
+        P.body.position.z = -.2 * hit * w;                            // lunge forward
+        P.lLeg.rotation.x += -.35 * hit * w; P.rLeg.rotation.x += .35 * hit * w;
+      }
+      if (EW.draw > .01) {
+        // bow stance: left arm straight out holding the bow, right hand pulled back to the cheek
+        const w = EW.draw;
+        mixR(P.lArm, 'x', 1.5, w); mixR(P.lFore, 'x', .05, w);
+        mixR(P.rArm, 'x', 1.35, w); mixR(P.rArm, 'z', .3, w); mixR(P.rFore, 'x', 2.3 + Math.sin(t * 40) * .03, w);
+        mixR(P.torso, 'y', -.5, w);
+      }
+      P.head.rotation.y = .5 * (EW.draw || 0);
       if (EW.bow > .01) { const w = EW.bow; mixR(P.lArm, 'x', 1.55, w); mixR(P.lFore, 'x', .05, w); mixR(P.rArm, 'x', 1.4, w); mixR(P.rArm, 'z', .35, w); mixR(P.rFore, 'x', 1.9, w) }
-      if (g.userData.bow) g.userData.bow.visible = (EW.bow || 0) > .3;
+      if (g.userData.bow) g.userData.bow.visible = ((EW.bow || 0) + (EW.draw || 0)) > .3;
       // WAVE: upper arm out to the side, elbow bent so the forearm points up, forearm swings side to side
       const el = a.wt ? performance.now() - a.wt : 9999;
       const r = Math.max(0, Math.min(1, el / 250, (2200 - el) / 250));
@@ -2747,6 +2776,22 @@ export default function startGallery() {
     function sfxHum() { sfxTone(60, 85, 1.1, .4, 'triangle'); sfxNoise(260, 120, .7, 1.1, .25, 'lowpass') }
     function sfxDing() { sfxTone(988, 988, .9, .6, 'sine'); sfxTone(1319, 1319, 1.1, .5, 'sine', .18) }
 
+    function sfxTwang(p) { sfxTone(500 + p * 500, 140, .14, .5, 'triangle'); sfxNoise(3500, 900, 2, .1, .35) }
+    // Minecraft-style "oof": short low grunt, pitch dropping, muffled
+    function sfxHurt(v = 1) {
+      if (!sfxReady()) return;
+      const t = actx.currentTime, o = actx.createOscillator(), o2 = actx.createOscillator(), f = actx.createBiquadFilter(), g = actx.createGain();
+      const base = 300 + Math.random() * 40;
+      o.type = 'sawtooth'; o2.type = 'square';
+      o.frequency.setValueAtTime(base, t); o.frequency.exponentialRampToValueAtTime(base * .45, t + .2);
+      o2.frequency.setValueAtTime(base * .5, t); o2.frequency.exponentialRampToValueAtTime(base * .22, t + .2);
+      f.type = 'lowpass'; f.Q.value = 4; f.frequency.setValueAtTime(1400, t); f.frequency.exponentialRampToValueAtTime(350, t + .2);
+      g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.7 * v, t + .01); g.gain.exponentialRampToValueAtTime(.0001, t + .22);
+      o.connect(f); o2.connect(f); f.connect(g); g.connect(sfxOut);
+      o.start(t); o2.start(t); o.stop(t + .25); o2.stop(t + .25);
+      sfxNoise(1800, 400, .8, .08, .5 * v);
+    }
+
     // ---- elevator finder (small 3D arrow + ELEVATOR label)
     const guide = document.createElement('button'); guide.type = 'button';
     guide.style.cssText = 'position:fixed;left:50%;top:10px;transform:translateX(-50%);z-index:20;display:none;align-items:center;gap:8px;padding:7px 14px;border:0;border-radius:20px;background:rgba(20,20,24,.82);color:#fff;font:600 13px system-ui,sans-serif;cursor:pointer';
@@ -2820,17 +2865,19 @@ export default function startGallery() {
     cst.textContent = 'body.menu #act,body.photo #act{display:none!important}#act button:active{transform:scale(.9)}';
     document.head.append(cst);
     const hurtEl = document.createElement('div');
-    hurtEl.style.cssText = 'position:fixed;inset:0;pointer-events:none;background:radial-gradient(transparent 35%,rgba(255,0,0,.6));opacity:0;transition:opacity .3s;z-index:31';
+    hurtEl.style.cssText = 'position:fixed;inset:0;pointer-events:none;background:radial-gradient(transparent 20%,rgba(255,0,0,.75)),rgba(255,0,0,.22);opacity:0;transition:opacity .5s;z-index:31';
     document.body.append(hurtEl);
     const actBox = document.createElement('div'); actBox.id = 'act';
     actBox.style.cssText = 'position:fixed;right:max(14px,env(safe-area-inset-right));bottom:calc(max(18px,env(safe-area-inset-bottom)) + 66px);z-index:19;display:none;flex-direction:column;gap:10px';
     const cd = { punch: 0, bow: 0 };
-    function mkAct(icon, label, fn) {
+    function mkAct(icon, label, fn, up) {
       const b = document.createElement('button'); b.type = 'button'; b.textContent = icon; b.title = label; b.setAttribute('aria-label', label);
       b.style.cssText = 'width:62px;height:62px;min-height:0;padding:0;border-radius:50%;font-size:30px;line-height:1;background:rgba(28,28,32,.94);border:1px solid rgba(255,255,255,.18);color:#fff;box-shadow:0 8px 25px #0006;touch-action:manipulation;transition:opacity .15s';
-      b.addEventListener('pointerdown', e => { e.preventDefault(); fn() }); actBox.append(b); return b;
+      b.addEventListener('pointerdown', e => { e.preventDefault(); fn() });
+      if (up) for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) b.addEventListener(ev, up);
+      actBox.append(b); return b;
     }
-    const bPunch = mkAct('👊', 'Punch (Z)', () => punch()), bBow = mkAct('🏹', 'Bow (Q)', () => shootArrow());
+    const bPunch = mkAct('👊', 'Punch (Z)', () => punch()), bBow = mkAct('🏹', 'Bow (hold Q)', () => bowStart(), () => bowRelease());
     document.body.append(actBox);
     function ready(k, ms) {
       const n = performance.now(); if (n < cd[k]) return false; cd[k] = n + ms;
@@ -2838,40 +2885,82 @@ export default function startGallery() {
     }
     const canAct = () => started && !evBusy && !photoOn && !talkOpen;
 
-    function punch() {
-      if (!canAct() || !ready('punch', 650)) return;
-      setEmote('punch'); sfxTone(220, 90, .12, .6, 'triangle');
-      const fx = -Math.sin(yaw), fz = -Math.cos(yaw); let best = null, bd = 1.8;
-      for (const [id, a] of avatars) {
-        const dx = a.g.position.x - px, dz = a.g.position.z - pz, d = Math.hypot(dx, dz);
-        if (d > bd || d < .01 || (dx * fx + dz * fz) / d < .45) continue;
-        best = id; bd = d;
-      }
-      if (room) room.emit('act', { k: 'punch', to: best }).catch(() => { });
-      if (best) { const a = avatars.get(best); if (a) spawnFloat(a.g, '💥') }
+    // ---- hit effects
+    const HURTM = new THREE.MeshBasicMaterial({ color: 0xff2a2a });
+    let kbx = 0, kbz = 0, shake = 0;
+    function flashAvatar(g) {            // whole body turns red for a moment (Minecraft style)
+      if (g.userData.fl) return; g.userData.fl = true;
+      const sv = []; g.traverse(o => { if (o.isMesh && o.material) { sv.push([o, o.material]); o.material = HURTM } });
+      setTimeout(() => { for (const [o, m] of sv) o.material = m; g.userData.fl = false }, 220);
+    }
+    function hitFx(a) {
+      spawnFloat(a.g, '💥'); flashAvatar(a.g);
+      const d = Math.hypot(a.g.position.x - px, a.g.position.z - pz); sfxHurt(Math.max(.25, 1 - d / 20));
     }
 
+    // ---- punch
+    function punch() {
+      if (!canAct() || !ready('punch', 650)) return;
+      setEmote('punch'); sfxTone(260, 90, .14, .5, 'triangle'); sfxNoise(1200, 300, 1, .12, .3);
+      setTimeout(() => {                 // the hit lands on the strike frame, not at the key press
+        const fx = -Math.sin(yaw), fz = -Math.cos(yaw); let best = null, bd = 1.8;
+        for (const [id, a] of avatars) {
+          const dx = a.g.position.x - px, dz = a.g.position.z - pz, d = Math.hypot(dx, dz);
+          if (d > bd || d < .01 || (dx * fx + dz * fz) / d < .45) continue;
+          best = id; bd = d;
+        }
+        shake = Math.max(shake, .25);
+        if (room) room.emit('act', { k: 'punch', to: best }).catch(() => { });
+        if (best) { const a = avatars.get(best); if (a) hitFx(a) }
+      }, 160);
+    }
+
+    // ---- bow (hold to draw, release to fire)
     const arrows = [], arrowShaft = new THREE.CylinderGeometry(.012, .012, .8, 6).rotateX(Math.PI / 2), arrowTip = new THREE.ConeGeometry(.035, .12, 6).rotateX(Math.PI / 2);
     const arrowMatA = new THREE.MeshBasicMaterial({ color: 0xd8c7a0 }), arrowMatB = new THREE.MeshBasicMaterial({ color: 0xbfc3c8 });
-    function spawnArrow(o, d, len) {
+    function spawnArrow(o, d, len, v = 30) {
       if (arrows.length > 20) return;
       const g = new THREE.Group(), tip = new THREE.Mesh(arrowTip, arrowMatB); tip.position.z = .45;
       g.add(new THREE.Mesh(arrowShaft, arrowMatA), tip);
       g.position.set(o[0], o[1], o[2]); g.lookAt(o[0] + d[0], o[1] + d[1], o[2] + d[2]); scene.add(g);
-      arrows.push({ g, o, d, len, s: 0 });
+      arrows.push({ g, o, d, len, s: 0, v });
     }
     function arrowTick(dt) {
       for (let i = arrows.length - 1; i >= 0; i--) {
-        const a = arrows[i]; a.s += 30 * dt; const s = Math.min(a.s, a.len);
+        const a = arrows[i]; a.s += a.v * dt; const s = Math.min(a.s, a.len);
         a.g.position.set(a.o[0] + a.d[0] * s, a.o[1] + a.d[1] * s, a.o[2] + a.d[2] * s);
-        if (a.s >= a.len + 12) { scene.remove(a.g); arrows.splice(i, 1) }
+        if (a.s >= a.len + a.v * .4) { scene.remove(a.g); arrows.splice(i, 1) }
       }
     }
-    function shootArrow() {
-      if (!canAct() || !ready('bow', 1000)) return;
-      setEmote('bow'); sfxTone(900, 200, .15, .5, 'sawtooth');
+    let bowT = 0;
+    const bowBar = document.createElement('div');
+    bowBar.style.cssText = 'position:fixed;left:50%;top:58%;transform:translateX(-50%);width:120px;height:8px;border-radius:5px;background:rgba(0,0,0,.5);border:1px solid #fff8;z-index:19;display:none;overflow:hidden';
+    const bowFill = document.createElement('div'); bowFill.style.cssText = 'height:100%;width:0;background:#6dff8c';
+    bowBar.append(bowFill); document.body.append(bowBar);
+    function bowStart() {
+      if (bowT || !canAct() || performance.now() < cd.bow) return;
+      if (sitting) standUp();
+      clearTimeout(emoTimer); bowT = performance.now(); emote = 'draw'; $('dn').className = 'g'; setPresence(true);
+      sfxTone(110, 260, .6, .18, 'triangle'); bowBar.style.display = 'block';
+    }
+    function bowRelease() {
+      if (!bowT) return;
+      const c = Math.min(1, (performance.now() - bowT) / 900); bowT = 0; bowBar.style.display = 'none';
+      if (emote === 'draw') { emote = null; setPresence(true) }
+      if (c < .12 || !canAct()) return;          // too weak = cancelled, like Minecraft
+      fireArrow(c);
+    }
+    function bowTick() {
+      if (!bowT) return;
+      const c = Math.min(1, (performance.now() - bowT) / 900);
+      bowFill.style.width = (c * 100) + '%'; bowFill.style.background = c >= 1 ? '#ffc94d' : '#6dff8c';
+      if (!canAct()) bowRelease();
+    }
+    function fireArrow(c) {
+      if (!ready('bow', 450)) return;
+      sfxTwang(c);
       const cp = Math.cos(pitch), D3 = [-Math.sin(yaw) * cp, Math.sin(pitch), -Math.cos(yaw) * cp], O = [px, EYE + sy - .1, pz];
-      let len = 30, to = null;
+      let len = 8 + 22 * c, to = null;           // more charge = longer range and faster arrow
       for (let s = .5; s < len; s += .5) {
         const x = O[0] + D3[0] * s, y = O[1] + D3[1] * s, z = O[2] + D3[2] * s;
         if (collidesWithWall(x, z, .02) || y < 0 || y > H) { len = s; break }
@@ -2881,36 +2970,37 @@ export default function startGallery() {
         const t = v[0] * D3[0] + v[1] * D3[1] + v[2] * D3[2]; if (t < .5 || t > len) continue;
         if (v[0] * v[0] + v[1] * v[1] + v[2] * v[2] - t * t < .22) { len = t; to = id }
       }
-      const r2 = n => +n.toFixed(2), o = O.map(r2), d = D3.map(r2), l = +len.toFixed(1);
-      spawnArrow(o, d, l);
-      if (room) room.emit('act', { k: 'arrow', o, d, l, to }).catch(() => { });
-      if (to) { const a = avatars.get(to); if (a) spawnFloat(a.g, '💥') }
+      const r2 = n => +n.toFixed(2), o = O.map(r2), d = D3.map(r2), l = +len.toFixed(1), p = +c.toFixed(2);
+      spawnArrow(o, d, l, 16 + 26 * c);
+      if (room) room.emit('act', { k: 'arrow', o, d, l, p, to }).catch(() => { });
+      if (to) { const a = avatars.get(to); if (a) { hitFx(a); sfxTone(300, 100, .08, .5, 'square') } }
     }
 
-    function hurt(from) {
+    // ---- getting hit: red flash, camera shake, sound, knockback
+    function hurt(from, kind, pw) {
       if (!started || evBusy || photoOn) return;
       if (sitting) standUp();
-      hurtEl.style.opacity = '1'; setTimeout(() => hurtEl.style.opacity = '0', 180);
-      sfxTone(160, 60, .2, .7, 'sawtooth');
+      hurtEl.style.transition = 'none'; hurtEl.style.opacity = '1'; void hurtEl.offsetWidth;
+      hurtEl.style.transition = 'opacity .5s'; hurtEl.style.opacity = '0';
+      sfxHurt(1); shake = 1;
       const p = lastPeers.find(q => q.peer === from)?.presence;
       if (p && p.x != null && (p.r || 0) === myRoom) {
-        let dx = px - p.x, dz = pz - p.z; const d = Math.hypot(dx, dz) || 1; dx /= d; dz /= d;
-        for (const k of [.8, .5, .25]) {
-          const nx = Math.max(-W / 2 + .9, Math.min(W / 2 - .9, px + dx * k)), nz = Math.max(-D / 2 + .9, Math.min(D / 2 - .9, pz + dz * k));
-          if (!collidesWithWall(nx, nz)) { px = nx; pz = nz; break }
-        }
-        setPresence(true);
+        const dx = px - p.x, dz = pz - p.z, d = Math.hypot(dx, dz) || 1;
+        const sp = kind === 'punch' ? 8 : 4 + 5 * (pw || 0);
+        kbx = dx / d * sp; kbz = dz / d * sp;
       }
+      setPresence(true);
     }
     const ok3 = v => Array.isArray(v) && v.length === 3 && v.every(Number.isFinite);
     room.on('act', m => {
       if (m.sameTab) return;
       const d = m.data || {}, sp = lastPeers.find(q => q.peer === m.peer)?.presence;
       if (!sp || (sp.r || 0) !== myRoom) return;
-      if (d.k === 'arrow' && ok3(d.o) && ok3(d.d) && Number.isFinite(+d.l) && +d.l > 0 && +d.l <= 31) spawnArrow(d.o, d.d, +d.l);
+      const pw = Math.min(1, Math.max(0, +d.p || 0));
+      if (d.k === 'arrow' && ok3(d.o) && ok3(d.d) && Number.isFinite(+d.l) && +d.l > 0 && +d.l <= 31) spawnArrow(d.o, d.d, +d.l, 16 + 26 * pw);
       if ((d.k === 'arrow' || d.k === 'punch') && d.to) {
-        const t = avatars.get(d.to); if (t) spawnFloat(t.g, '💥');
-        if (d.to === wsId) hurt(m.peer);
+        const t = avatars.get(d.to); if (t) hitFx(t);
+        if (d.to === wsId) hurt(m.peer, d.k, pw);
       }
     });
 
@@ -2918,7 +3008,14 @@ export default function startGallery() {
     let last = performance.now();
     (function loop(t) {
       requestAnimationFrame(loop); const dt = Math.min(.05, (t - last) / 1000); last = t;
-      if (started) { step(dt); setPresence(false); look() } else { cam.position.set(0, EYE, 6); cam.rotation.set(0, Math.sin(t / 4000) * .5, 0) }
+      if (started) {
+        step(dt); setPresence(false); look(); bowTick();
+        if (shake > 0 && !photoOn) {
+          cam.rotation.z = Math.sin(performance.now() / 25) * shake * .06 + shake * .1;   // tilt + rattle
+          cam.position.y += (Math.random() - .5) * shake * .06;
+          shake = Math.max(0, shake - dt * 3.5);
+        }
+      } else { cam.position.set(0, EYE, 6); cam.rotation.set(0, Math.sin(t / 4000) * .5, 0) }
       for (const m of spinners) m.rotation.y += dt * .5;
       elevTick(dt); stairTick(); guideTick(); smoothAvatars(dt); receptionTick(dt); monTick(dt); ledTick(dt); escTick(dt); tvTick(dt); tickFloaters(); arrowTick(dt); voiceTick(); renderer.render(scene, cam)
     })(last);
