@@ -1,6 +1,6 @@
 
 import { useEffect } from 'react';
-import './App.css';
+import './app.css';
 import startGallery from './engine.js';
 
 function Icon({ name, size = 20 }) {
