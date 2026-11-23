@@ -1,5 +1,6 @@
 
 import { useEffect } from 'react';
+import './App.css';
 import startGallery from './engine.js';
 
 function Icon({ name, size = 20 }) {
@@ -163,23 +164,8 @@ export default function App() {
       {/* ONLINE VISITORS */}
       <div
         id="visitor-panel"
-        style={{
-          display: 'none',
-          position: 'fixed',
-          top: '76px',
-          right: '18px',
-          width: 'min(340px, calc(100vw - 24px))',
-          maxHeight: 'min(440px, calc(100vh - 100px))',
-          overflowY: 'auto',
-          zIndex: 100,
-          padding: '16px',
-          borderRadius: '16px',
-          background: 'rgba(20, 22, 28, 0.96)',
-          color: '#fff',
-          border: '1px solid rgba(255,255,255,.12)',
-          boxShadow: '0 16px 50px rgba(0,0,0,.35)',
-          backdropFilter: 'blur(18px)',
-        }}
+        className="visitor-panel"
+        style={{ display: 'none' }}
       >
         <div style={{
           display: 'flex',
@@ -434,13 +420,13 @@ export default function App() {
           </div>
 
           <div className="panel-actions">
+            <button id="cancel" className="cancel-button">
+              Cancel
+            </button>
+            
             <button id="save" className="save-button">
               <Icon name="upload" size={17} />
               Hang painting
-            </button>
-
-            <button id="cancel" className="cancel-button">
-              Cancel
             </button>
           </div>
 
