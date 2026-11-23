@@ -209,6 +209,7 @@ export default function App() {
         <div><span>L</span> Elevator</div>
         <div><span>Z</span> Punch</div>
         <div><span>Q</span> Bow</div>
+        <div><span>Y</span> Photobooth</div>
       </div>
 
       <div id="cap" className="hud" />
@@ -423,7 +424,7 @@ export default function App() {
             <button id="cancel" className="cancel-button">
               Cancel
             </button>
-            
+
             <button id="save" className="save-button">
               <Icon name="upload" size={17} />
               Hang painting
