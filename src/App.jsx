@@ -1,6 +1,7 @@
 
 import { useEffect } from 'react';
 import './app.css';
+import './studio-theme.css';
 import startGallery from './engine.js';
 
 function Icon({ name, size = 20 }) {
@@ -425,7 +426,7 @@ export default function App() {
               Cancel
             </button>
 
-            <button id="save" className="save-button">
+            <button id="save" className="save-button z-[99999]">
               <Icon name="upload" size={17} />
               Hang painting
             </button>

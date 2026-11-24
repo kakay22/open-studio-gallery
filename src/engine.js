@@ -9,7 +9,9 @@ export default function startGallery() {
     let myName = ''; try { myName = localStorage.getItem('gname') || '' } catch (e) { } $('nm').value = myName; let myGen = 'n'; try { myGen = localStorage.getItem('ggen') || 'n' } catch (e) { }
     function paintGen() { document.querySelectorAll('#gen button').forEach(b => b.className = b.dataset.g === myGen ? '' : 'g') }
     document.querySelectorAll('#gen button').forEach(b => b.onclick = () => { myGen = b.dataset.g; paintGen() }); paintGen();
-    let myWave = 0, emote = null, sitting = false; const EMO = ['👍', '❤️', '😂', '👏', '😮']; const HUc = [0, 25, 50, 120, 175, 215, 265, 320]; let myLook = { sk: 0, hr: 0, hu: HUc[Math.floor(Math.random() * HUc.length)] }; try { Object.assign(myLook, JSON.parse(localStorage.getItem('glook') || '{}')) } catch (e) { }
+    let myWave = 0, emote = null, sitting = false; const EMO = ['👍', '❤️', '😂', '👏', '😮', '🔥', '🎨', '🤩']; const HUc = [0, 25, 50, 120, 175, 215, 265, 320]; let myLook = { sk: 0, hr: 0, hu: HUc[Math.floor(Math.random() * HUc.length)] }; try { Object.assign(myLook, JSON.parse(localStorage.getItem('glook') || '{}')) } catch (e) { }
+    myLook = { hs: 0, ht: 0, gl: 0, bg: 0, ...myLook };
+    let myStudio = '', mySeat = -1;
     const SKc = ['#f1c9a5', '#d9a37c', '#b67b55', '#8a5a3c', '#5e3b27'], HRc = ['#2a1d15', '#5a3a22', '#b98a4e', '#1a1a1a', '#8b3a2b', '#9aa0a6'];
     function sw(id, arr, key, hue) { const el = $(id); arr.forEach((c, i) => { const b = document.createElement('i'), val = hue ? c : i; b.style.background = hue ? `hsl(${c},55%,48%)` : c; if (myLook[key] === val) b.className = 'on'; b.onclick = () => { myLook[key] = val;[...el.children].forEach(x => x.className = ''); b.className = 'on' }; el.append(b) }) }
     sw('skin', SKc, 'sk'); sw('hair', HRc, 'hr'); sw('hue', HUc, 'hu', true);
@@ -19,13 +21,14 @@ export default function startGallery() {
     function floatDom(e) { const d = document.createElement('div'); d.className = 'fl'; d.textContent = e; d.style.left = (40 + Math.random() * 20) + '%'; document.body.append(d); setTimeout(() => d.remove(), 2200) }
     function spawnFloat(grp, e) { const c = document.createElement('canvas'); c.width = c.height = 96; const x = c.getContext('2d'); x.font = '64px serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(e, 48, 52); const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true })); sp.scale.set(.6, .6, 1); sp.position.y = 2.45; grp.add(sp); floaters.push({ sp, grp, t: performance.now() }) }
     function tickFloaters() { const n = performance.now(); for (let i = floaters.length - 1; i >= 0; i--) { const f = floaters[i], a = (n - f.t) / 2400; if (a >= 1) { f.grp.remove(f.sp); f.sp.material.map.dispose(); f.sp.material.dispose(); floaters.splice(i, 1); continue } f.sp.position.y = 2.45 + a * .9; f.sp.material.opacity = a < .7 ? 1 : (1 - a) / .3 } }
-    function react(e) { floatDom(e); if (room) room.emit('react', { e }).catch(() => { }) }
+    function react(e) { stat('emo'); floatDom(e); if (room) room.emit('react', { e }).catch(() => { }) }
     EMO.forEach(e => { const b = document.createElement('button'); b.className = 'g e'; b.textContent = e; b.onclick = () => react(e); $('emo').append(b) });
     [['🙌', () => setEmote('clap')], ['😆', () => setEmote('laugh')], ['👉', () => setEmote('point')], ['🆗', () => setEmote('thumb')], ['🪑', () => setEmote('sit')], ['💃', () => setEmote('dance')], ['📷', () => togglePhoto()]].forEach(([i, f]) => { const b = document.createElement('button'); b.className = 'g e'; b.textContent = i; b.onclick = f; $('emo').append(b) });
-    function standUp() { sitting = false; if (emote === 'sit') emote = null; pz = Math.min(pz + 1.4, D / 2 - 1); setPresence(true) }
+    function standUp() { const s = mySeat; sitting = false; if (emote === 'sit') emote = null; if (s >= 0) { const e = SEATS[s]; px = e.ex; pz = e.ez; mySeat = -1; myStudio = ''; if (room) room.emit('act', { k: 'seat', i: -1 }).catch(() => { }); if (stOpen) closeStudio() } else pz = Math.min(pz + 1.4, D / 2 - 1); setPresence(true) }
     const ONESHOT = { clap: 2600, laugh: 2600, point: 3000, thumb: 2400, punch: 500, bow: 1100 }; let emoTimer = 0;
     function setEmote(n) {
       clearTimeout(emoTimer);
+      if (n === 'sit' && !sitting && nearSeat() >= 0) { sitSeat(nearSeat()); return }
       if (emote === n) { if (n === 'sit') standUp(); else emote = null }
       else {
         if (sitting) standUp();
@@ -1231,7 +1234,7 @@ export default function startGallery() {
       if (!me) { registerFromCard(); return }
       if (touch) stick.style.display = 'block';
       myName = ($('nm').value.trim() || 'Guest ' + myId.slice(-3)); try { localStorage.setItem('gname', myName); localStorage.setItem('ggen', myGen); localStorage.setItem('glook', JSON.stringify(myLook)) } catch (e) { }
-      if (me) api('/api/profile', { method: 'POST', body: JSON.stringify({ look: { g: myGen, sk: myLook.sk, hr: myLook.hr, hu: myLook.hu } }) }).catch(() => { });
+      if (me) api('/api/profile', { method: 'POST', body: JSON.stringify({ look: lookObj() }) }).catch(() => { });
       $('start').style.display = 'none'; document.body.classList.remove('menu'); started = true; $('chat').style.display = 'block'; $('emo').style.display = 'flex'; $('act').style.display = 'flex'; if (touch) $('cross').style.display = 'block'; try { ctxA() } catch (e) { } setPresence(true); if (!touch) cvs.requestPointerLock?.()
     };
     cvs.addEventListener('click', () => { if (started && !touch && !locked) cvs.requestPointerLock?.() });
@@ -1609,76 +1612,123 @@ export default function startGallery() {
     const tubeG = (len, rt, rb, bu = 0) => prof('t' + [len, rt, rb, bu], [[0, -len], [rb * .72, -len + rb * .28], [rb, -len + rb], [(rt + rb) / 2 + bu, -len / 2], [rt, -rt], [rt * .72, -rt * .28], [0, 0]], 16, 30);
     const openG = (len, rt, rb) => prof('o' + [len, rt, rb], [[rb, -len], [(rt + rb) / 2, -len / 2], [rt, 0]], 16, 12);   // open sleeve / shorts leg
     function limb(len, rt, rb, bu, mat) { const p = new THREE.Group(); p.add(mk(tubeG(len, rt, rb, bu), mat)); return p }
+    function addExtras(head, torso, look, hair, hue) {
+      const n = k => { const v = look && +look[k]; return Number.isInteger(v) && v > 0 && v < 5 ? v : 0 };
+      const hs = n('hs'), ht = n('ht'), gl = n('gl'), bg = n('bg');
+      const A = (p, geo, mat, x, y, z, sx, sy, sz) => p.add(mk(geo, mat, x, y, z, sx, sy, sz));
+      const hat = MT(new THREE.Color(`hsl(${(hue + 40) % 360},60%,46%)`), .4), gold = MT(0xe3b53c, .3), dark = MT(0x1d1a17, .3), bagM = MT(new THREE.Color(`hsl(${(hue + 90) % 360},45%,42%)`), .6);
+      // hair styles
+      if (hs === 1) { A(head, sphG(.07, 12, 10), hair, 0, .02, .31); A(head, capG(.05, .2), hair, 0, -.2, .36) }                 // ponytail
+      else if (hs === 2) for (const s of [-1, 1]) A(head, sphG(.1, 14, 10), hair, s * .2, .26, .08);                          // buns
+      else if (hs === 3) { A(head, sphG(.13, 14, 10), hair, 0, .28, .03); for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; A(head, sphG(.1, 12, 10), hair, Math.cos(a) * .22, .2, Math.sin(a) * .2 + .04) } }   // curls
+      else if (hs === 4) { A(head, sphG(.11, 14, 10), hair, 0, .37, .02); A(head, sphG(.06, 10, 8), hair, 0, .46, .02) }       // top knot
+      // hats
+      if (ht === 1) { A(head, geoOf('hatDome', () => new THREE.SphereGeometry(.31, 24, 14, 0, Math.PI * 2, 0, Math.PI * .5)), hat, 0, .06, .03, 1, 1, 1.05); A(head, sphG(.18, 14, 8), hat, 0, .1, -.3, 1.1, .12, 1) }   // cap
+      else if (ht === 2) { A(head, geoOf('beanie', () => new THREE.SphereGeometry(.318, 24, 14, 0, Math.PI * 2, 0, Math.PI * .55)), hat, 0, .04, .03, 1, 1, 1.05); A(head, geoOf('cuff', () => new THREE.CylinderGeometry(.322, .322, .08, 24)), gold, 0, .075, .03, 1, 1, 1.05); A(head, sphG(.065, 12, 10), gold, 0, .36, .03) }   // beanie
+      else if (ht === 3) { A(head, geoOf('topH', () => new THREE.CylinderGeometry(.17, .18, .3, 20)), dark, 0, .46, .02); A(head, geoOf('topB', () => new THREE.CylinderGeometry(.3, .3, .03, 24)), dark, 0, .31, .02); A(head, geoOf('topR', () => new THREE.CylinderGeometry(.182, .182, .05, 20)), hat, 0, .36, .02) }   // top hat
+      else if (ht === 4) { A(head, geoOf('crnR', () => new THREE.CylinderGeometry(.2, .2, .07, 20)), gold, 0, .33, .03); for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; A(head, geoOf('crnC', () => new THREE.ConeGeometry(.04, .12, 6)), gold, Math.cos(a) * .2, .43, Math.sin(a) * .2 + .03) } }   // crown
+      // glasses
+      if (gl) {
+        const fm = gl === 3 ? gold : dark;
+        if (gl === 2) for (const s of [-1, 1]) A(head, geoOf('shade', () => new THREE.BoxGeometry(.12, .075, .012)), dark, s * .085, 0, -.268);
+        else for (const s of [-1, 1]) A(head, geoOf('ring', () => new THREE.TorusGeometry(.05, .009, 8, 20)), fm, s * .085, 0, -.268);
+        A(head, geoOf('bridge', () => new THREE.CylinderGeometry(.006, .006, .06, 6)), fm, 0, .01, -.268, 1, 1, 1).rotation.z = Math.PI / 2;
+      }
+
+      // bags (back of the avatar is +z)
+      if (bg === 1) { A(torso, geoOf('bpk', () => new THREE.BoxGeometry(.28, .34, .14)), bagM, 0, .07, .21); for (const s of [-1, 1]) A(torso, geoOf('bst', () => new THREE.BoxGeometry(.03, .3, .02)), dark, s * .09, .12, -.16) }
+      else if (bg === 2) { A(torso, geoOf('sat', () => new THREE.BoxGeometry(.2, .15, .08)), bagM, .2, -.12, 0); const st = A(torso, geoOf('sstr', () => new THREE.BoxGeometry(.018, .55, .012)), dark, 0, .06, -.168); st.rotation.z = .75 }
+      else if (bg === 3) { A(torso, geoOf('tote', () => new THREE.BoxGeometry(.22, .2, .06)), bagM, .2, -.15, -.02); A(torso, geoOf('hand', () => new THREE.TorusGeometry(.07, .01, 6, 14, Math.PI)), dark, .2, -.05, -.02) }
+    }
     function makeAvatar(name, hue, gen, sd, look) {
+      const LONG_PANTS = false;   // set true for full-length trousers like the reference; false keeps your original shorts
       const g = new THREE.Group(), P = {}, f = gen === 'f', m = gen === 'm';
-      const skin = MT(SKIN[ok(look && look.sk, 5) ? look.sk : sd % 5], .75), hair = MT(HAIR[ok(look && look.hr, 6) ? look.hr : (sd >>> 4) % 5], .6);
-      const shirt = MT(new THREE.Color(`hsl(${hue},55%,52%)`), .9), collar = MT(new THREE.Color(`hsl(${hue},55%,38%)`), .9);
-      const shorts = MT(new THREE.Color(`hsl(${(hue + 180) % 360},20%,28%)`), .9), shoe = MT(0xf4f1ea, .55), sole = MT(new THREE.Color(`hsl(${hue},40%,40%)`), .7);
-      const eyeW = MT(0xffffff, .25), iris = MT(0x3a2a1c, .3), pupil = MT(0x0c0c0c, .3), lip = MT(0x8a4a42, .6), cheek = MT(0xff9a8a, 1);
-      const w = f ? .9 : m ? 1.1 : 1, kw = f ? .88 : m ? 1 : .94, kc = f ? .98 : 1.04, h = f ? .96 : m ? .92 : .94;
-      const armX = .168 * kc * w + .045;
 
-      // pelvis + shorts
+      // ---- one shared glossy "clay/plastic" palette
+      const skin = MT(SKIN[ok(look && look.sk, 5) ? look.sk : sd % 5], .42);
+      const hair = MT(HAIR[ok(look && look.hr, 6) ? look.hr : (sd >>> 4) % 5], .3);
+      const shirt = MT(new THREE.Color(`hsl(${hue},62%,58%)`), .38);
+      const pants = MT(new THREE.Color(`hsl(${(hue + 180) % 360},38%,52%)`), .45);
+      const shoe = MT(0xf6f3ec, .4), sole = MT(new THREE.Color(`hsl(${hue},40%,46%)`), .5);
+      const eyeM = MT(0x2a2220, .25), cheek = MT(0xff9e92, 1), lip = MT(0x9a4a42, .5);
+      const w = f ? .94 : m ? 1.06 : 1;
+
+      // capsule that hangs down from its pivot
+      const seg = (r, len, mat) => { const p = new THREE.Group(); p.add(mk(capG(r, len), mat, 0, -(len / 2 + r), 0)); return p };
+
+      // ---- body
       const body = new THREE.Group(); g.add(body); P.body = body;
-      body.add(mk(prof('pelv', [[0, .74], [.1, .745], [.16, .775], [.176, .83], [.178, .88], [.17, .93]], 20, 24), shorts, 0, 0, 0, h, 1, .82));
+      body.add(mk(sphG(.18, 20, 14), pants, 0, .8, 0, w, .85, .85));                       // hips
 
-      // torso: one smooth shirt shape (hips, waist, chest, shoulders)
       const torso = new THREE.Group(); torso.position.y = 1.12; body.add(torso); P.torso = torso;
-      torso.add(mk(prof('shirt' + gen, [[.21, -.24], [.203, -.2], [.18, -.13], [.152 * kw, -.05], [.155 * kw, 0], [.17 * kc, .07], [.18 * kc, .13], [.185 * kc, .19], [.17 * kc, .245], [.12, .28], [.075, .298], [.06, .3]], 24, 40), shirt, 0, 0, 0, w, 1, .74));
-      const col = mk(geoOf('col2', () => new THREE.TorusGeometry(.068, .013, 8, 20)), collar, 0, .296, 0, 1, 1, .9); col.rotation.x = Math.PI / 2; torso.add(col);
-      if (f) for (const s of [-1, 1]) torso.add(mk(sphG(.055, 12, 10), shirt, s * .06, .08, -.115, 1, .9, .6));   // subtle bust shaping
-      torso.add(mk(geoOf('neck2', () => new THREE.CylinderGeometry(.047, .053, .14, 14)), skin, 0, .345, 0));
+      torso.add(mk(prof('tee-clay' + gen, [[0, -.25], [.15, -.24], [.165, -.2], [.15, -.06], [.158, .06], [.175, .19], [.16, .26], [.08, .3], [0, .31]], 24, 36), shirt, 0, 0, 0, w, 1, .8));
+      torso.add(mk(geoOf('neckC', () => new THREE.CylinderGeometry(.045, .05, .1, 14)), skin, 0, .33, 0));
 
-      // head
-      const head = new THREE.Group(); head.position.y = .56; torso.add(head); P.head = head;
-      head.add(mk(prof('head', [[0, -.205], [.07, -.198], [.12, -.17], [.158, -.11], [.175, -.03], [.18, .05], [.168, .12], [.135, .18], [.08, .213], [0, .225]], 28, 40), skin, 0, 0, 0, .92, 1, .96));
-      head.add(mk(sphG(.028, 12, 10), skin, 0, -.028, -.165, .8, 1, .7));                       // nose
+      // ---- head: oversized smooth sphere
+      const head = new THREE.Group(); head.position.y = .6; torso.add(head); P.head = head;
+      head.add(mk(sphG(.27, 32, 24), skin, 0, 0, 0, 1, .97, .97));
+      head.add(mk(sphG(.03, 10, 8), skin, 0, -.04, -.262, 1, .8, .8));                      // tiny nose bump
       for (const s of [-1, 1]) {
-        head.add(mk(sphG(.034, 14, 10), eyeW, s * .07, .02, -.148, 1, .85, .5));               // eye white
-        head.add(mk(sphG(.021, 12, 8), iris, s * .07, .02, -.158, 1, 1, .35));                 // iris
-        head.add(mk(sphG(.011, 8, 6), pupil, s * .07, .02, -.1625, 1, 1, .5));                 // pupil
-        head.add(mk(sphG(.007, 6, 5), HLM, s * .07 + .008, .029, -.166));                      // highlight
-        const brow = mk(capG(.007, .04), hair, s * .07, .066, -.148); brow.rotation.z = Math.PI / 2 + s * .12; head.add(brow);
-        head.add(mk(sphG(.03, 8, 6), cheek, s * .1, -.04, -.125, 1, .7, .3));                  // soft cheeks
-        head.add(mk(sphG(.032, 10, 8), skin, s * .168, 0, .005, .45, 1, .65));                 // ears
+        head.add(mk(sphG(.03, 14, 12), eyeM, s * .085, .0, -.245, 1, 1.4, .45));            // small oval eyes
+        head.add(mk(sphG(.008, 8, 6), HLM, s * .085 + .008, .02, -.262));                   // eye sparkle
+        const brow = mk(capG(.006, .04), hair, s * .085, .075, -.245); brow.rotation.z = Math.PI / 2 + s * .15; head.add(brow);
+        head.add(mk(sphG(.035, 10, 8), cheek, s * .15, -.07, -.205, 1, .6, .3));            // blush
       }
-      const mouth = mk(geoOf('mouth2', () => new THREE.TorusGeometry(.03, .006, 5, 14, Math.PI)), lip, 0, -.062, -.158); mouth.rotation.z = Math.PI; head.add(mouth);   // smile
-      head.add(mk(geoOf('hairTop', () => new THREE.LatheGeometry(new THREE.SplineCurve([[.2, .082], [.192, .12], [.17, .15], [.152, .18], [.092, .216], [0, .232]].map(p => new THREE.Vector2(p[0], p[1]))).getPoints(30).map(v => new THREE.Vector2(Math.max(0, v.x), v.y)), 28)), hair, 0, 0, 0, .92, 1, .96));   // full cap, hairline above the brows
-      head.add(mk(geoOf('hairNape', () => new THREE.LatheGeometry(new THREE.SplineCurve([[.14, -.1], [.19, -.03], [.2, .05], [.196, .1]].map(p => new THREE.Vector2(p[0], p[1]))).getPoints(24).map(v => new THREE.Vector2(Math.max(0, v.x), v.y)), 20, -1.25, 2.5)), hair, 0, 0, 0, .92, 1, .96));   // back and sides down to the nape, leaves the ears and face clear
+      const mouth = mk(geoOf('smileC', () => new THREE.TorusGeometry(.03, .007, 6, 14, Math.PI)), lip, 0, -.085, -.25); mouth.rotation.z = Math.PI; head.add(mouth);
+
+      // ---- hair: smooth glossy volume, swept fringe, face stays clear
+      head.add(mk(sphG(.29, 28, 20), hair, 0, .03, .05, 1, 1, 1));                          // main hair mass (covers ears like the reference)
+      head.add(mk(sphG(.12, 16, 12), hair, .07, .165, -.2, 1.6, .5, .6));                   // swept fringe
+      head.add(mk(sphG(.09, 14, 10), hair, -.1, .2, -.17, 1.3, .5, .6));
       if (f) {
-        head.add(mk(sphG(.15, 14, 12), hair, 0, -.12, .09, 1, 1.7, .75));                      // long hair at the back
-        for (const s of [-1, 1]) head.add(mk(sphG(.1, 10, 8), hair, s * .15, -.07, .03, .35, 1.2, .6));   // side locks
+        head.add(mk(sphG(.2, 18, 14), hair, 0, -.22, .12, 1.25, 1.5, .75));                // long hair behind
+        for (const s of [-1, 1]) head.add(mk(sphG(.09, 14, 10), hair, s * .21, -.25, -.01, .55, 2, .75));   // locks in front of shoulders
+      } else if (m) {
+        head.add(mk(sphG(.12, 14, 10), hair, .02, .29, -.02, 1.3, .65, 1.1));              // short top volume
+      } else {
+        head.add(mk(sphG(.2, 16, 12), hair, 0, -.1, .1, 1.1, 1, .8));                      // bob
       }
 
-      // arms: smooth taper, t-shirt sleeve, mitten hand
+      // ---- arms: tapered upper arm + forearm, short sleeve, hand with fingers and thumb
       const arm = s => {
-        const a = limb(.3, .05, .042, 0, skin); a.position.set(s * armX, .225, 0);
-        a.add(mk(sphG(.06, 12, 10), shirt, 0, -.01, 0));                                       // shoulder cap
-        a.add(mk(openG(.13, .062, .057), shirt));                                              // sleeve
-        const fo = limb(.28, .042, .033, .004, skin); fo.position.y = -.3; a.add(fo);
-        const hd = new THREE.Group(); hd.position.y = -.28; fo.add(hd);
-        hd.add(mk(sphG(.05, 12, 10), skin, 0, -.05, 0, .85, 1.2, .55));                        // palm
-        const th = mk(sphG(.022, 8, 6), skin, -s * .045, -.035, -.01, .7, 1.5, .7); th.rotation.z = -s * .5; hd.add(th);   // thumb
+        const a = limb(.27, .05, .042, .004, skin); a.position.set(s * (.17 * w + .055), .235, 0);
+        a.add(mk(sphG(.062, 14, 12), shirt, 0, -.01, 0));                                   // shoulder cap
+        a.add(mk(openG(.12, .066, .06), shirt));                                            // short sleeve
+        a.add(mk(sphG(.043, 12, 10), skin, 0, -.27, 0));                                    // elbow joint, hides the seam
+        const fo = limb(.26, .042, .031, .004, skin); fo.position.y = -.27; a.add(fo);
+        const hd = new THREE.Group(); hd.position.y = -.26; fo.add(hd);
+        hd.add(mk(sphG(.04, 12, 10), skin, 0, -.04, 0, 1.05, 1.1, .6));                     // palm
+        for (let i = 0; i < 4; i++) {                                                       // four short fingers
+          const fx = (i - 1.5) * .02, fl = i === 1 || i === 2 ? .04 : .033;
+          const fg = mk(capG(.011, fl), skin, fx, -.095 - fl / 2, 0); fg.rotation.x = -.15; hd.add(fg);
+        }
+        const th = mk(capG(.013, .03), skin, -s * .044, -.06, -.008); th.rotation.z = -s * .6; hd.add(th);   // thumb
         torso.add(a); return [a, fo, hd];
       };
       [P.lArm, P.lFore, P.lHand] = arm(-1);[P.rArm, P.rFore, P.rHand] = arm(1);
 
-      // legs: tapered thigh and calf, shorts hem, sneaker
+      // ---- legs: same length as before so feet still touch the floor
       const leg = s => {
-        const l = limb(.42, .086, .058, .006, skin); l.position.set(s * .115, .82, 0);
-        l.add(mk(openG(.26, .103, .108), shorts));                                             // shorts leg
-        const sh = limb(.4, .058, .04, .007, skin); sh.position.y = -.42; l.add(sh);
-        sh.add(mk(sphG(.06, 14, 10), shoe, 0, -.372, -.05, .88, .65, 1.9));                    // sneaker
-        sh.add(mk(geoOf('sole2', () => new THREE.BoxGeometry(.12, .026, .26)), sole, 0, -.4, -.05));
+        const l = seg(.075, .27, skin); l.position.set(s * .105 * w, .82, 0);
+        const tl = LONG_PANTS ? .4 : .24;
+        l.add(mk(geoOf('pt' + tl, () => new THREE.CylinderGeometry(.088, LONG_PANTS ? .075 : .096, tl, 16)), pants, 0, -tl / 2, 0));
+        const sh = seg(.06, .28, skin); sh.position.y = -.42; l.add(sh);
+        if (LONG_PANTS) sh.add(mk(geoOf('ps', () => new THREE.CylinderGeometry(.075, .066, .3, 16)), pants, 0, -.15, 0));
+        sh.add(mk(sphG(.07, 16, 12), shoe, 0, -.365, -.04, .95, .65, 1.8));                 // rounded sneaker
+        sh.add(mk(geoOf('soleC', () => new THREE.BoxGeometry(.13, .03, .27)), sole, 0, -.4, -.04));
         g.add(l); return [l, sh];
       };
       [P.lLeg, P.lShin] = leg(-1);[P.rLeg, P.rShin] = leg(1);
 
+      // ---- bow (unchanged)
       const bow = new THREE.Group(); bow.visible = false;
       const arc = mk(geoOf('bowArc', () => new THREE.TorusGeometry(.35, .012, 6, 18, Math.PI)), MT(0x6b4a2a, .6)); arc.rotation.set(0, Math.PI / 2, -Math.PI / 2);
       const str = mk(geoOf('bowStr', () => new THREE.CylinderGeometry(.003, .003, .7, 4)), MT(0xeeeeee, .5));
       bow.add(arc, str); bow.rotation.x = -Math.PI / 2; bow.position.set(0, -.06, 0); P.lHand.add(bow); g.userData.bow = bow;
-      const lb = label(name); lb.position.y = 2.1; g.add(lb); g.userData.pr = P; g.userData.lb = lb; scene.add(g); g.traverse(o => { if (o.isMesh) o.castShadow = o.receiveShadow = true }); return g
+
+      const lb = label(name); lb.position.y = 2.15; g.add(lb); g.userData.pr = P; g.userData.lb = lb; scene.add(g);
+      g.traverse(o => { if (o.isMesh) o.castShadow = o.receiveShadow = true });
+      return g;
     }
     function makeAvatarOld(name, hue) {
       const g = new THREE.Group(), col = new THREE.Color(`hsl(${hue},60%,50%)`);
@@ -1867,7 +1917,7 @@ export default function startGallery() {
 
         if ((d.r || 0) !== myRoom) continue; n++; seen.add(p.peer);
         let a = avatars.get(p.peer); const nm = String(d.name || 'Guest').slice(0, 18);
-        const gn = ['m', 'f'].includes(d.g) ? d.g : 'n'; const sig = [gn, d.sk, d.hr, d.hu].join(); if (!a || a.name !== nm || a.sig !== sig) { if (a) scene.remove(a.g); const hu = (d.hu != null && Number.isFinite(+d.hu)) ? ((+d.hu % 360) + 360) % 360 : hueOf(p.peer); a = { g: makeAvatar(nm, hu, gn, seedOf(p.peer), d), name: nm, gn, sig, ph: 0, k: 0, wv: d.w || 0, wt: 0, tx: d.x, tz: d.z, try: d.ry || 0, buf: [] }; a.g.position.set(d.x, 0, d.z); avatars.set(p.peer, a) }
+        const gn = ['m', 'f'].includes(d.g) ? d.g : 'n'; const sig = [gn, d.sk, d.hr, d.hu, d.hs, d.ht, d.gl, d.bg].join(); if (!a || a.name !== nm || a.sig !== sig) { if (a) scene.remove(a.g); const hu = (d.hu != null && Number.isFinite(+d.hu)) ? ((+d.hu % 360) + 360) % 360 : hueOf(p.peer); a = { g: makeAvatar(nm, hu, gn, seedOf(p.peer), d), name: nm, gn, sig, ph: 0, k: 0, wv: d.w || 0, wt: 0, tx: d.x, tz: d.z, try: d.ry || 0, buf: [] }; a.g.position.set(d.x, 0, d.z); avatars.set(p.peer, a) }
         a.tx = d.x; a.tz = d.z; a.try = d.ry || 0;
         const ls = a.buf[a.buf.length - 1];
         if (!ls || ls.x !== d.x || ls.z !== d.z || ls.y !== (d.y || 0) || ls.r !== a.try) {
@@ -2046,7 +2096,7 @@ export default function startGallery() {
     function setPresence(force) {
       if (!room || !started) return; const now = performance.now(); if (!force && now - lastSent < 70) return;
       const k = [px.toFixed(2), pz.toFixed(2), sy.toFixed(2), yaw.toFixed(2), pitch.toFixed(2), myRoom, myWave, emote, micOn, evSeq].join(); if (!force && k === lastKey) return; lastKey = k; lastSent = now;
-      room.presence({ x: +px.toFixed(2), z: +pz.toFixed(2), y: +sy.toFixed(2), ry: +yaw.toFixed(2), pit: +pitch.toFixed(2), rp: +pitch.toFixed(2), r: myRoom, g: myGen, sk: myLook.sk, hr: myLook.hr, hu: myLook.hu, w: myWave, em: emote, mic: micOn, eq: evSeq, et: evTo, name: myName }).catch(() => { });
+      room.presence({ x: +px.toFixed(2), z: +pz.toFixed(2), y: +sy.toFixed(2), ry: +yaw.toFixed(2), pit: +pitch.toFixed(2), rp: +pitch.toFixed(2), r: myRoom, g: myGen, sk: myLook.sk, hr: myLook.hr, hu: myLook.hu, w: myWave, em: emote, mic: micOn, eq: evSeq, et: evTo, name: myName, hs: myLook.hs, ht: myLook.ht, gl: myLook.gl, bg: myLook.bg, st: myStudio, ss: mySeat }).catch(() => { });
     }
 
     // ---- captions + removal
@@ -2175,6 +2225,7 @@ export default function startGallery() {
             }
 
             uploaded++;
+            stat('up');
           } catch (err) {
             console.error('Failed to upload:', file.name, err);
             failed++;
@@ -2380,6 +2431,7 @@ export default function startGallery() {
         myId = String(me.id); myName = me.displayName; $('nm').value = myName; $('nm').readOnly = true;
         if (me.look && me.look.g) {
           myGen = me.look.g; if (me.look.sk != null) myLook.sk = me.look.sk; if (me.look.hr != null) myLook.hr = me.look.hr; if (me.look.hu != null) myLook.hu = me.look.hu;
+          for (const k of ['hs', 'ht', 'gl', 'bg']) if (me.look[k] != null) myLook[k] = me.look[k];
           paintGen(); for (const id of ['skin', 'hair', 'hue']) $(id).innerHTML = '';
           sw('skin', SKc, 'sk'); sw('hair', HRc, 'hr'); sw('hue', HUc, 'hu', true);
         }
@@ -2408,7 +2460,7 @@ export default function startGallery() {
     $('pf-out').onclick = () => $('acct-out').click();
     $('pf-file').onchange = e => uploadAvatar(e.target.files[0], e.target);
     room = roomS; db = dbS; assets = assetsS; local = false;
-    db.collection('paintings').onSnapshot(s => { paintings = s.docs.map(x => ({ id: x.id, ...x.data() })); layout() });
+    db.collection('paintings').onSnapshot(s => { paintings = s.docs.map(x => ({ id: x.id, ...x.data() })); layout(); notifyNew() });
     room.onPeers(applyPeers);
 
     room.on('chat', m => {
@@ -2888,7 +2940,7 @@ export default function startGallery() {
           if ($('start').style.display === 'none') return;
           const w = pc.clientWidth, h = pc.clientHeight; if (!w || !h) return;
           if (w !== pw || h !== ph) { pw = w; ph = h; pr.setSize(w, h, false); pcam.aspect = w / h; pcam.updateProjectionMatrix() }
-          const sig = [myGen, myLook.sk, myLook.hr, myLook.hu].join();
+          const sig = [myGen, myLook.sk, myLook.hr, myLook.hu, myLook.hs, myLook.ht, myLook.gl, myLook.bg].join();
           if (sig !== psig) {
             psig = sig; if (pav) ps.remove(pav);
             const g = makeAvatar('', myLook.hu, myGen, seedOf(myId), myLook);
@@ -3275,6 +3327,287 @@ export default function startGallery() {
         if (Math.abs(boothCam.aspect - as) > .001) { boothCam.aspect = as; boothCam.fov = Math.min(100, 2 * Math.atan(Math.tan(40 * Math.PI / 180) / as) * 180 / Math.PI); boothCam.updateProjectionMatrix() }
       }
     }
+
+    // ================= HUB: items, friends, DMs, artists, paint contest =================
+    const lsGet = (k, d) => { try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v } catch (e) { return d } };
+    const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)) } catch (e) { } };
+    function lookObj() { return { g: myGen, sk: myLook.sk, hr: myLook.hr, hu: myLook.hu, hs: myLook.hs, ht: myLook.ht, gl: myLook.gl, bg: myLook.bg } }
+    function stats() { return lsGet('gstats', {}) }
+    function stat(k, n = 1) { const s = stats(); s[k] = (s[k] || 0) + n; lsSet('gstats', s) }
+    function statSet(k, v) { const s = stats(); s[k] = Math.max(s[k] || 0, v); lsSet('gstats', s) }
+    const STL = { vis: 'visits', emo: 'reactions', up: 'uploads', st: 'contests', fr: 'friends' };
+    // [key, label, [name, unlockStat, unlockCount]...]
+    const CAT = [
+      ['hs', 'Hair style', [['Classic'], ['Ponytail'], ['Buns', 'vis', 3], ['Curls', 'emo', 10], ['Top knot', 'up', 2]]],
+      ['ht', 'Hat', [['None'], ['Cap', 'vis', 2], ['Beanie', 'emo', 5], ['Top hat', 'up', 3], ['Crown', 'st', 2]]],
+      ['gl', 'Glasses', [['None'], ['Round'], ['Shades', 'vis', 4], ['Gold', 'fr', 1]]],
+      ['bg', 'Bag', [['None'], ['Backpack'], ['Satchel', 'up', 1], ['Tote', 'emo', 20]]]
+    ];
+    const have = it => !it[1] || (stats()[it[1]] || 0) >= it[2];
+
+    const mkb = (t, css, fn) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = t; b.style.cssText = 'border:0;border-radius:12px;padding:7px 11px;font:600 12px system-ui,sans-serif;cursor:pointer;color:#fff;background:#3a3740;' + (css || ''); if (fn) b.onclick = fn; return b };
+    const mke = (tag, css, t) => { const e = document.createElement(tag); if (css) e.style.cssText = css; if (t != null) e.textContent = t; return e };
+    const hcss = document.createElement('style'); hcss.textContent = 'body.menu #hubB,body.photo #hubB{display:none!important}'; document.head.append(hcss);
+    const hubB = mkb('☰ Hub', 'position:fixed;left:10px;top:56px;z-index:21;display:none;background:rgba(20,20,24,.85);padding:9px 13px;border-radius:18px;font-size:13px', () => openHub()); hubB.id = 'hubB';
+    const hubP = mke('div', 'position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:41;display:none;width:min(430px,94vw);max-height:82vh;overflow:auto;padding:14px;border-radius:16px;background:rgba(20,20,24,.97);color:#fff;font:14px/1.4 system-ui,sans-serif');
+    let hubTab = 'avatar', hubOn = false, dmWith = null; const dms = {}, unread = {};
+    function hubClose() { hubOn = false; hubP.style.display = 'none'; if (!touch && started && !stOpen) cvs.requestPointerLock?.() }
+    function openHub(t) { if (t) hubTab = t; if (!hubOn) { document.exitPointerLock?.(); for (const k in keys) keys[k] = false } hubOn = true; hubP.style.display = 'block'; renderHub() }
+    function saveLook() { lsSet('glook', myLook); if (me) api('/api/profile', { method: 'POST', body: JSON.stringify({ look: lookObj() }) }).catch(() => { }); setPresence(true) }
+    function renderHub() {
+      hubP.innerHTML = '';
+      const bar = mke('div', 'display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px'), nUn = Object.values(unread).reduce((a, b) => a + b, 0);
+      [['avatar', '🧍 Avatar'], ['people', '👥 People'], ['msg', '✉ Messages' + (nUn ? ' (' + nUn + ')' : '')], ['artists', '🎨 Artists'], ['studio', '🖌 Contest']]
+        .forEach(([k, l]) => bar.append(mkb(l, 'background:' + (hubTab === k ? '#8b78e6' : '#3a3740'), () => { hubTab = k; if (k !== 'msg') dmWith = null; renderHub() })));
+      bar.append(mkb('✕', 'background:none;margin-left:auto;font-size:16px', hubClose)); hubP.append(bar);
+      const body = mke('div'); hubP.append(body);
+      ({ avatar: hubAvatar, people: hubPeople, msg: hubMsg, artists: hubArtists, studio: hubStudio })[hubTab](body);
+    }
+    function hubAvatar(b) {
+      const s = stats(); b.append(mke('div', 'font-size:12px;opacity:.7;margin-bottom:4px', Object.keys(STL).map(k => STL[k] + ': ' + (s[k] || 0)).join(' · ')));
+      for (const [k, lab, items] of CAT) {
+        b.append(mke('div', 'font-size:11px;opacity:.6;margin:10px 0 4px', lab));
+        const row = mke('div', 'display:flex;flex-wrap:wrap;gap:6px');
+        items.forEach((it, i) => { const can = have(it); row.append(mkb((can ? '' : '🔒 ') + it[0] + (can ? '' : ' · ' + it[2] + ' ' + STL[it[1]]), 'background:' + (myLook[k] === i ? '#8b78e6' : '#3a3740') + (can ? '' : ';opacity:.55'), () => { if (!can) return; myLook[k] = i; saveLook(); renderHub() })) });
+        b.append(row);
+      }
+      b.append(mke('div', 'font-size:11px;opacity:.6;margin-top:10px', 'Items unlock as you visit, react, upload art, finish contests and add friends. Others see your look live.'));
+    }
+    function onlinePeers() { return lastPeers.filter(p => !p.sameTab && p.presence && p.presence.x != null).map(p => ({ id: p.peer, name: String(p.presence.name || 'Guest').slice(0, 18), room: (p.presence.r || 0) + 1, st: !!p.presence.st })) }
+    function toggleFriend(n) { const l = lsGet('gfriends', []), i = l.indexOf(n); if (i >= 0) l.splice(i, 1); else l.push(n); lsSet('gfriends', l); statSet('fr', l.length) }
+    function hubPeople(b) {
+      const fr = lsGet('gfriends', []), on = onlinePeers();
+      const row = (name, sub, btns) => { const r = mke('div', 'display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #fff1'), i = mke('div', 'flex:1;min-width:0'); i.append(mke('div', 'font-weight:700', name), mke('div', 'font-size:11px;opacity:.6', sub)); r.append(i, ...btns); return r };
+      const dm = n => mkb('💬', '', () => { dmWith = n; hubTab = 'msg'; renderHub() });
+      b.append(mke('div', 'font-size:11px;opacity:.6;margin-bottom:4px', 'FRIENDS'));
+      if (!fr.length) b.append(mke('div', 'opacity:.6;font-size:13px', 'Press ☆ next to someone to add them.'));
+      for (const n of fr) { const o = on.find(p => p.name === n); b.append(row(n, o ? '🟢 online · Room ' + o.room + (o.st ? ' · 🎨 in contest' : '') : '⚪ offline', [dm(n), mkb('★', 'background:#c9a45c', () => { toggleFriend(n); renderHub() })])) }
+      b.append(mke('div', 'font-size:11px;opacity:.6;margin:12px 0 4px', 'ONLINE NOW (' + on.length + ')'));
+      if (!on.length) b.append(mke('div', 'opacity:.6;font-size:13px', 'Nobody else is here yet.'));
+      for (const o of on) b.append(row(o.name, 'Room ' + o.room + (o.st ? ' · 🎨 in contest' : ''), [dm(o.name), mkb(fr.includes(o.name) ? '★' : '☆', '', () => { toggleFriend(o.name); renderHub() })]));
+    }
+    function sendDm(name, text) {
+      (dms[name] = dms[name] || []).push({ me: true, text });
+      const p = lastPeers.find(q => !q.sameTab && q.presence && String(q.presence.name || '').slice(0, 18) === name);
+      if (!p) { dms[name].push({ me: false, text: '⚠ ' + name + ' is offline, message not delivered.' }); return }
+      wsend({ t: 'rtc', to: p.peer, data: { dm: { name: myName, text: text.slice(0, 300) } } });   // rides the existing private "to:" relay
+    }
+    handlers.rtc.push(m => {
+      const d = m.data && m.data.dm; if (!d || m.sameTab) return;
+      const name = String(d.name || 'Guest').slice(0, 18), text = String(d.text || '').slice(0, 300); if (!text) return;
+      (dms[name] = dms[name] || []).push({ me: false, text }); if (!(hubOn && hubTab === 'msg' && dmWith === name)) unread[name] = (unread[name] || 0) + 1;
+      sfxPop(); addChat('✉ ' + name, text); if (hubOn && hubTab === 'msg') renderHub();
+    });
+    function hubMsg(b) {
+      if (!dmWith) {
+        const names = Object.keys(dms); if (!names.length) b.append(mke('div', 'opacity:.7', 'No conversations yet. Open People and press 💬.'));
+        for (const n of names) b.append(mkb(n + (unread[n] ? ' (' + unread[n] + ' new)' : ''), 'display:block;width:100%;text-align:left;margin-bottom:6px', () => { dmWith = n; renderHub() })); return;
+      }
+      unread[dmWith] = 0;
+      b.append(mkb('← Back', 'margin-bottom:8px', () => { dmWith = null; renderHub() }), mke('div', 'font-weight:700;margin:4px 0', dmWith));
+      const log = mke('div', 'display:flex;flex-direction:column;gap:6px;max-height:36vh;overflow:auto;margin-bottom:8px');
+      for (const m of dms[dmWith] || []) log.append(mke('div', 'padding:7px 10px;border-radius:10px;max-width:85%;' + (m.me ? 'align-self:flex-end;background:#8b78e6' : 'background:#33303a'), m.text));
+      const inp = mke('input', 'width:100%;box-sizing:border-box;padding:10px;border-radius:10px;border:0;background:#2a2830;color:#fff;font:14px system-ui'); inp.placeholder = 'Message ' + dmWith + '…'; inp.maxLength = 300;
+      inp.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter' && inp.value.trim()) { sendDm(dmWith, inp.value.trim()); renderHub(); hubP.querySelector('input')?.focus() } });
+      inp.addEventListener('keyup', e => e.stopPropagation());
+      b.append(log, inp); log.scrollTop = log.scrollHeight;
+    }
+    // ---- follow artists
+    function toggleFollow(a) { const f = lsGet('gfollow', []), i = f.indexOf(a); if (i >= 0) f.splice(i, 1); else f.push(a); lsSet('gfollow', f); addChat('Gallery', (i >= 0 ? 'Unfollowed ' : '⭐ Following ') + a) }
+    addEventListener('keydown', e => { if (started && e.code === 'KeyK' && looking && looking.artist && document.activeElement.tagName !== 'INPUT') toggleFollow(looking.artist) });
+    let seenIds = null;
+    function notifyNew() {
+      const f = lsGet('gfollow', []);
+      if (seenIds) for (const p of paintings) if (!seenIds.has(p.id) && p.artist && f.includes(p.artist) && p.owner !== myId) { addChat('Gallery', '🎨 New work by ' + p.artist + ': ' + (p.title || 'Untitled')); sfxDing() }
+      seenIds = new Set(paintings.map(p => p.id));
+    }
+    function hubArtists(b) {
+      const f = lsGet('gfollow', []), cnt = {}; for (const p of paintings) if (p.artist) cnt[p.artist] = (cnt[p.artist] || 0) + 1;
+      const names = Object.keys(cnt).sort((a, c) => (f.includes(c) - f.includes(a)) || cnt[c] - cnt[a]);
+      b.append(mke('div', 'font-size:12px;opacity:.7;margin-bottom:6px', 'Look at a painting and press K to follow its artist. You get a notice when they add new work.'));
+      if (!names.length) b.append(mke('div', 'opacity:.6', 'No artists yet.'));
+      for (const n of names) {
+        const r = mke('div', 'display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #fff1'), i = mke('div', 'flex:1'); i.append(mke('div', 'font-weight:700', n), mke('div', 'font-size:11px;opacity:.6', cnt[n] + ' painting' + (cnt[n] > 1 ? 's' : '')));
+        r.append(i, mkb(f.includes(n) ? 'Following ✓' : 'Follow', f.includes(n) ? 'background:#c9a45c' : '', () => { toggleFollow(n); renderHub() })); b.append(r);
+      }
+    }
+    // friends coming online
+    let frSeen = new Set();
+    setInterval(() => { const fr = lsGet('gfriends', []), now = new Set(onlinePeers().map(p => p.name).filter(n => fr.includes(n))); if (started) for (const n of now) if (!frSeen.has(n)) addChat('Gallery', '⭐ ' + n + ' is online'); frSeen = now }, 2500);
+    setInterval(() => { hubB.style.display = started && !stOpen ? 'block' : 'none'; hubB.textContent = '☰ Hub' + (Object.values(unread).some(v => v) ? ' •' : '') }, 500);
+
+    // ================= PAINT CONTEST STUDIO (up to 4 players, 2x2 grid, timer, optional upload) =================
+    const ST_ID = 'contest1', STW = 400, STH = 300, STT = 120;
+    let stOpen = false, stIds = [], stRun = false, stEnd = 0, stBuf = [], stDraw = false, stColor = '#222222', stSize = 7, stResOpen = false;
+    const stCv = [], stCx = [], stNm = [];
+    const stEl = mke('div', 'position:fixed;inset:0;z-index:50;display:none;flex-direction:column;align-items:center;gap:8px;padding:10px;background:rgba(15,14,18,.97);color:#fff;font:600 14px system-ui,sans-serif;overflow:auto');
+    const stInfo = mke('div', 'font-size:13px;text-align:center;min-height:20px');
+    const stStart = mkb('▶ Start round (2:00)', 'background:#2e9e5b;padding:9px 14px;font-size:13px', null);
+    const stTop = mke('div', 'display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center'); stTop.append(mke('b', 'font-size:16px', '🎨 Paint Contest'), stStart, mkb('✕ Leave', '', () => closeStudio()));
+    const stGrid = mke('div', 'display:grid;grid-template-columns:1fr 1fr;gap:6px;width:min(96vw,calc((100vh - 200px) * 1.33))');
+    for (let i = 0; i < 4; i++) {
+      const cell = mke('div', 'position:relative;background:#fff;border-radius:6px;overflow:hidden;aspect-ratio:4/3'), c = document.createElement('canvas'); c.width = STW; c.height = STH; c.style.cssText = 'width:100%;height:100%;display:block;touch-action:none';
+      const x = c.getContext('2d'); x.lineCap = x.lineJoin = 'round'; x.fillStyle = '#fff'; x.fillRect(0, 0, STW, STH);
+      const nm = mke('div', 'position:absolute;left:6px;top:4px;font:700 11px system-ui;color:#fff;background:rgba(0,0,0,.55);padding:2px 7px;border-radius:8px;pointer-events:none', 'Slot ' + (i + 1));
+      cell.append(c, nm); stGrid.append(cell); stCv.push(c); stCx.push(x); stNm.push(nm);
+    }
+    const stTools = mke('div', 'display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:center');
+    ['#222222', '#e63946', '#f4a261', '#f1c40f', '#2a9d8f', '#3a86ff', '#8b78e6', '#ff77a8', '#8d5a3c'].forEach(c => { const b = mke('button', 'width:28px;height:28px;border-radius:50%;border:2px solid #fff6;background:' + c + ';cursor:pointer;padding:0'); b.type = 'button'; b.onclick = () => { stColor = c }; stTools.append(b) });
+    stTools.append(mkb('Eraser', '', () => { stColor = '#ffffff' }), mkb('Thin', '', () => { stSize = 3 }), mkb('Medium', '', () => { stSize = 7 }), mkb('Thick', '', () => { stSize = 16 }), mkb('Clear mine', '', () => { const i = stMySlot(); if (stRun && i >= 0) { stWipe(i); if (room) room.emit('act', { k: 'sx' }).catch(() => { }) } }));
+    const stRes = mke('div', 'position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:rgba(0,0,0,.92);padding:12px;z-index:2');
+    stEl.append(stTop, stInfo, stGrid, stTools, stRes); document.body.append(hubB, hubP, stEl);
+
+    function stSlots() { const a = [null, null, null, null], now = performance.now(); if (mySeat >= 0) a[mySeat] = wsId; for (const [id, s] of seatReg) { if (now - s.t > 3500) { seatReg.delete(id); continue } if (s.r === myRoom && id !== wsId && !a[s.i]) a[s.i] = id } return a }
+    function stMembers() { return stSlots().filter(Boolean).sort() }
+    function nameOf(id) { if (id === wsId) return myName; const p = lastPeers.find(q => q.peer === id); return String(p && p.presence && p.presence.name || (seatReg.get(id) || {}).n || 'Guest').slice(0, 18) }
+    function stMySlot() { return stIds.indexOf(wsId) }
+    function stWipe(i) { stCx[i].fillStyle = '#fff'; stCx[i].fillRect(0, 0, STW, STH) }
+    function stSeg(i, x0, y0, x1, y1, col, w) { const x = stCx[i]; x.strokeStyle = col; x.lineWidth = w; x.beginPath(); x.moveTo(x0, y0); x.lineTo(x1, y1); x.stroke() }
+    function stLocal(x0, y0, x1, y1) { const i = stMySlot(); stSeg(i, x0, y0, x1, y1, stColor, stSize); stBuf.push([x0, y0, x1, y1, stColor, stSize]) }
+    stCv.forEach((c, i) => {
+      let last = null; const pos = e => { const r = c.getBoundingClientRect(); return [Math.round((e.clientX - r.left) / r.width * STW), Math.round((e.clientY - r.top) / r.height * STH)] };
+      c.addEventListener('pointerdown', e => { if (!stRun || i !== stMySlot()) return; e.preventDefault(); c.setPointerCapture(e.pointerId); stDraw = true; last = pos(e); stLocal(last[0], last[1], last[0], last[1]) });
+      c.addEventListener('pointermove', e => { if (!stDraw || !stRun || i !== stMySlot()) return; const p = pos(e); stLocal(last[0], last[1], p[0], p[1]); last = p });
+      for (const ev of ['pointerup', 'pointercancel']) c.addEventListener(ev, () => { stDraw = false });
+    });
+    setInterval(() => { if (stBuf.length && room) room.emit('act', { k: 'sd', g: stBuf.splice(0, 60) }).catch(() => { }) }, 70);
+    addEventListener('keydown', e => { if (stOpen && e.target.tagName !== 'INPUT') e.stopImmediatePropagation() }, true);
+    addEventListener('keyup', e => { if (stOpen && e.target.tagName !== 'INPUT') e.stopImmediatePropagation() }, true);
+
+    function openStudio() {
+      if (!started || !wsId) { addChat('Gallery', 'Still connecting, try again in a moment.'); return } if (stOpen) return;
+      hubClose(); document.exitPointerLock?.(); for (const k in keys) keys[k] = false;
+      myStudio = ST_ID; stOpen = true; stRun = false; stIds = []; stResOpen = false; stRes.style.display = 'none';
+      for (let i = 0; i < 4; i++) { stWipe(i); stNm[i].textContent = 'Slot ' + (i + 1) } stEl.style.display = 'flex'; setPresence(true);
+    }
+    function closeStudio() { if (mySeat >= 0) { standUp(); return } stOpen = false; stRun = false; stDraw = false; myStudio = ''; stEl.style.display = 'none'; stRes.style.display = 'none'; setPresence(true); if (!touch) cvs.requestPointerLock?.() }
+    function stBegin(ids, t) {
+      stIds = ids; stRun = true; stResOpen = false; stRes.style.display = 'none'; stEnd = performance.now() + t * 1000;
+      for (let i = 0; i < 4; i++) { stWipe(i); stNm[i].textContent = ids[i] ? nameOf(ids[i]) : '(empty)' } stStart.style.display = 'none'; sfxWelcome();
+    }
+    stStart.onclick = () => { const ids = stSlots(), mem = ids.filter(Boolean).sort(); if (!mem.length || mem[0] !== wsId) return; if (room) room.emit('act', { k: 'sgo', ids }).catch(() => { }); stBegin(ids, STT) };
+    const seatReg = new Map();   // peerId -> { i, r, n, t }
+    function seatBeat() { if (room && mySeat >= 0) room.emit('act', { k: 'seat', i: mySeat, r: myRoom, n: myName }).catch(() => { }) }
+    setInterval(seatBeat, 1000);
+    room.on('act', m => {
+      if (m.sameTab) return; const d = m.data || {};
+      if (d.k === 'seat') { if (ok(+d.i, 4)) seatReg.set(m.peer, { i: +d.i, r: +d.r || 0, n: String(d.n || 'Guest').slice(0, 18), t: performance.now() }); else seatReg.delete(m.peer); return }
+      if (!stOpen || !seatReg.has(m.peer)) return;
+      if (d.k === 'sgo') { if (stRun || !Array.isArray(d.ids)) return; const ids = d.ids.slice(0, 4).map(x => typeof x === 'string' ? x : null); if (ids.filter(Boolean).sort()[0] === m.peer) stBegin(ids, STT) }   // only the host (lowest id) can start
+      else if (d.k === 'sd' && stRun) {
+        const i = stIds.indexOf(m.peer); if (i < 0 || !Array.isArray(d.g)) return;
+        for (const s of d.g.slice(0, 60)) { if (!Array.isArray(s) || s.length !== 6) continue; const [a, b, c2, e2, col, w] = s; if (![a, b, c2, e2, w].every(Number.isFinite) || !/^#[0-9a-f]{6}$/i.test(col)) continue; stSeg(i, a, b, c2, e2, col, Math.min(40, Math.max(1, w))) }
+      } else if (d.k === 'sx') { const i = stIds.indexOf(m.peer); if (i >= 0) stWipe(i) }
+    });
+    setInterval(() => {
+      if (!stOpen) return; const mem = stMembers(), host = mem[0] === wsId;
+      if (stRun) {
+        const s = Math.max(0, Math.ceil((stEnd - performance.now()) / 1000));
+        stInfo.textContent = '⏱ ' + Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0') + (stMySlot() < 0 ? ' · spectating' : ' · draw in your green square');
+        if (s <= 0) stFinish();
+      } else if (!stResOpen) {
+        stInfo.textContent = 'Players (' + Math.min(4, mem.length) + '/4): ' + mem.slice(0, 4).map(nameOf).join(', ') + (host ? ' · you are the host' : ' · waiting for the host to start');
+        stStart.style.display = host ? '' : 'none';
+      }
+      stCv.forEach((c, i) => { c.parentNode.style.outline = stRun && i === stMySlot() ? '3px solid #6dff8c' : 'none' });
+    }, 400);
+    function stCompose() {
+      const pad = 16, W2 = STW * 2 + pad * 3, H2 = STH * 2 + pad * 3 + 70, c = document.createElement('canvas'); c.width = W2; c.height = H2;
+      const x = c.getContext('2d'); x.fillStyle = '#f7f3ea'; x.fillRect(0, 0, W2, H2);
+      for (let i = 0; i < 4; i++) x.drawImage(stCv[i], pad + (i % 2) * (STW + pad), pad + Math.floor(i / 2) * (STH + pad));
+      x.fillStyle = '#1d1a17'; x.textAlign = 'center'; x.textBaseline = 'middle';
+      x.font = '600 24px Georgia, serif'; x.fillText('The Gallery · Paint Contest · ' + new Date().toLocaleDateString(), W2 / 2, H2 - 46);
+      x.font = 'italic 18px Georgia, serif'; x.fillText(stIds.filter(Boolean).map(nameOf).join(', '), W2 / 2, H2 - 18, W2 - 40); return c;
+    }
+    function stFinish() {
+      stRun = false; stDraw = false; stat('st'); sfxSuccess();
+      const c = stCompose(), url = c.toDataURL('image/jpeg', .9), names = stIds.filter(Boolean).map(nameOf).join(' & ').slice(0, 60);
+      stResOpen = true; stRes.innerHTML = '';
+      const im = mke('img', 'max-width:92vw;max-height:60vh;border-radius:8px;box-shadow:0 10px 40px #000'); im.src = url;
+      const ti = mke('input', 'width:min(420px,90vw);box-sizing:border-box;padding:10px;border-radius:10px;border:0;background:#2a2830;color:#fff;font:14px system-ui'); ti.value = 'Contest: ' + names; ti.maxLength = 60;
+      ti.addEventListener('keydown', e => e.stopPropagation()); ti.addEventListener('keyup', e => e.stopPropagation());
+      const msg = mke('div', 'font-size:12px;min-height:16px;opacity:.8', 'Time is up! Upload this 4-painting grid to the gallery?');
+      const up = mkb('⬆ Upload to gallery', 'background:#2e9e5b;padding:10px 16px;font-size:14px', async () => {
+        up.disabled = true; msg.textContent = 'Uploading…';
+        try {
+          const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', .9)), id = 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+          const rec2 = { title: ti.value.trim() || 'Paint Contest', artist: names || myName, w: c.width, h: c.height, createdAt: Date.now() };
+          const u = await assets.upload(blob); rec2.assetId = u.id; rec2.url = u.url; await db.collection('paintings').doc(id).set(rec2); await loadPaintings(); stat('up');
+          msg.textContent = 'Uploaded ✓ it will appear in the gallery.'; up.style.display = 'none';
+        } catch (e) { console.error(e); msg.textContent = 'Upload failed, try again.'; up.disabled = false }
+      });
+      const sv = mke('a', 'text-decoration:none;border-radius:12px;padding:10px 16px;font:600 14px system-ui;color:#fff;background:#3a3740'); sv.textContent = '⬇ Save'; sv.href = url; sv.download = 'gallery-contest-' + Date.now() + '.jpg';
+      const bt = mke('div', 'display:flex;gap:8px;flex-wrap:wrap;justify-content:center'); bt.append(up, sv, mkb('Discard', 'padding:10px 16px;font-size:14px', () => { stResOpen = false; stRes.style.display = 'none' }), mkb('Leave room', 'padding:10px 16px;font-size:14px', () => closeStudio()));
+      stRes.append(im, ti, msg, bt); stRes.style.display = 'flex';
+    }
+    function hubStudio(b) {
+      const n = lastPeers.filter(p => !p.sameTab && p.presence && p.presence.st === ST_ID && (p.presence.r || 0) === myRoom).length + (mySeat >= 0 ? 1 : 0);
+      b.append(mke('div', 'margin-bottom:8px', 'The contest room is at the back of the right wing. Sit in one of the 4 seats to play. Each seated player gets one square of a 2x2 grid, the host starts a 2:00 round, and afterwards you choose whether to upload the finished grid.'),
+        mke('div', 'font-size:12px;opacity:.7;margin-bottom:8px', n + ' / 4 seats taken'),
+        mkb('📍 Take me there', 'background:#2e9e5b;padding:10px 16px;font-size:14px', () => { if (sitting) standUp(); px = 12.5; pz = 5.9; yaw = Math.PI; pitch = 0; sy = 0; lpx = null; setPresence(true); hubClose() }));
+    }
+    stat('vis');
+
+    // ================= PAINT CONTEST ROOM (right wing, back): 4 seats, sit to play =================
+    const SEATS = [[11.5, 7.2], [14.5, 7.2], [11.5, 9.2], [14.5, 9.2]].map(([x, z], i) => {
+      const dx = 13 - x, dz = 8.2 - z;
+      return { x, z, yaw: Math.atan2(-dx, -dz), ex: z < 8 ? x : (x < 13 ? 9.6 : 16.4), ez: z < 8 ? 5.8 : 9.2, c: [0xe63946, 0x3a86ff, 0xf1c40f, 0x2a9d8f][i] };
+    });
+    // walls with a 3 m door at x = 12.5
+    wall(3.75, 9.125, 4.4, 0); wall(4, 16, 4.4, 0);
+    {
+      const hd = new THREE.Mesh(new THREE.BoxGeometry(3, H - 3.1, .5), wallM); hd.position.set(12.5, 3.1 + (H - 3.1) / 2, 4.4); scene.add(hd);
+      const sg = new THREE.Mesh(new THREE.PlaneGeometry(3.4, .85), plate('PAINT CONTEST', 512, 128, 50)); sg.position.set(12.5, 4.3, 4.13); sg.rotation.y = Math.PI; scene.add(sg);
+    }
+    rug(13, 7.9, 7.8, 5.2, 0x2a2a33, 0xe3b53c);
+    strip(13, 8, 7, .35, 6.0);
+    // table
+    {
+      const tb = new THREE.Mesh(new THREE.BoxGeometry(1.8, .08, 1), deskMat); tb.position.set(13, .78, 8.2); scene.add(tb);
+      const lg = new THREE.Mesh(new THREE.CylinderGeometry(.12, .2, .74, 12), darkMat); lg.position.set(13, .37, 8.2); scene.add(lg);
+      solidWalls.push({ x1: 12.2, z1: 8.2, x2: 13.8, z2: 8.2, th: .55 });
+    }
+    // chairs, seat markers and drawing boards
+    SEATS.forEach((s, i) => {
+      const g = new THREE.Group(); g.position.set(s.x, 0, s.z); g.rotation.y = s.yaw;
+      const col = new THREE.MeshLambertMaterial({ color: s.c });
+      const st = new THREE.Mesh(new THREE.BoxGeometry(.55, .08, .55), col); st.position.y = .45;
+      const bk = new THREE.Mesh(new THREE.BoxGeometry(.55, .55, .07), col); bk.position.set(0, .75, .25);
+      g.add(st, bk);
+      for (const [lx, lz] of [[-.22, -.22], [.22, -.22], [-.22, .22], [.22, .22]]) { const l = new THREE.Mesh(new THREE.BoxGeometry(.05, .45, .05), darkMat); l.position.set(lx, .22, lz); g.add(l) }
+      scene.add(g);
+      const rg = new THREE.Mesh(new THREE.RingGeometry(.42, .5, 28), new THREE.MeshBasicMaterial({ color: s.c, side: THREE.DoubleSide })); rg.rotation.x = -Math.PI / 2; rg.position.set(s.x, .04, s.z); scene.add(rg);
+      const bd = new THREE.Mesh(new THREE.BoxGeometry(.6, .02, .45), new THREE.MeshLambertMaterial({ color: 0xffffff }));
+      bd.position.set(13 + (s.x - 13) * .3, .83, 8.2 + (s.z - 8.2) * .3); bd.rotation.y = s.yaw; scene.add(bd);
+    });
+    // live seat board on the back wall
+    const sbC = document.createElement('canvas'); sbC.width = 768; sbC.height = 192; const sbX = sbC.getContext('2d'), sbT = new THREE.CanvasTexture(sbC); sbT.encoding = THREE.sRGBEncoding;
+    const sbM = new THREE.Mesh(new THREE.PlaneGeometry(6, 1.5), new THREE.MeshBasicMaterial({ map: sbT })); sbM.position.set(13, 3.4, 10.95); sbM.rotation.y = Math.PI; scene.add(sbM);
+    let sbKey = '';
+    function paintBoard() {
+      const sl = stSlots(), key = sl.map(v => v || '-').join() + stRun + myName; if (key === sbKey) return; sbKey = key;
+      sbX.fillStyle = '#1d1a17'; sbX.fillRect(0, 0, 768, 192); sbX.strokeStyle = '#c9a45c'; sbX.lineWidth = 4; sbX.strokeRect(5, 5, 758, 182);
+      sbX.textAlign = 'center'; sbX.textBaseline = 'middle'; sbX.fillStyle = '#c9a45c'; sbX.font = '600 34px Georgia, serif';
+      sbX.fillText(stRun ? 'ROUND IN PROGRESS' : 'PAINT CONTEST · sit to play', 384, 36);
+      sl.forEach((id, i) => {
+        const x0 = 24 + i * 180; sbX.fillStyle = id ? '#' + SEATS[i].c.toString(16).padStart(6, '0') : '#3a3740'; sbX.fillRect(x0, 70, 164, 90);
+        sbX.fillStyle = id ? '#111' : '#aaa'; sbX.font = '700 24px system-ui,sans-serif'; sbX.fillText(id ? nameOf(id).slice(0, 10) : 'Free', x0 + 82, 115);
+      });
+      sbT.needsUpdate = true;
+    }
+    // sit logic
+    function seatTaken(i) { const v = stSlots()[i]; return !!v && v !== wsId }
+    function nearSeat() { if (!started || mySeat >= 0) return -1; let b = -1, bd = 1.6; SEATS.forEach((s, i) => { const d = Math.hypot(px - s.x, pz - s.z); if (d < bd && !seatTaken(i)) { bd = d; b = i } }); return b }
+    function sitSeat(i) {
+      if (!wsId) { addChat('Gallery', 'Still connecting, try again in a moment.'); return }
+      if (seatTaken(i)) return; if (sitting) standUp();
+      const s = SEATS[i]; px = s.x; pz = s.z; yaw = s.yaw; pitch = 0; lpx = null; emote = 'sit'; sitting = true; mySeat = i; $('dn').className = 'g';
+      seatBeat();
+      openStudio();
+    }
+    const sitBtn = mkb(touch ? '🪑 Sit & paint' : '🪑 Sit & paint (E)', 'position:fixed;left:50%;bottom:90px;transform:translateX(-50%);z-index:22;display:none;padding:10px 16px;border-radius:20px;background:#e3a53c;color:#111;font-size:14px', () => { const i = nearSeat(); if (i >= 0) sitSeat(i) });
+    document.body.append(sitBtn);
+    setInterval(() => { sitBtn.style.display = started && !stOpen && !hubOn && nearSeat() >= 0 ? 'block' : 'none'; paintBoard() }, 300);
 
     // ---- loop
     let last = performance.now();

@@ -1,0 +1,459 @@
+
+/* =========================================
+   OPEN STUDIO — PREMIUM SAAS THEME
+   Preserves existing engine functionality
+========================================= */
+
+:root {
+  --studio-bg: #f7f7f5;
+  --studio-surface: #ffffff;
+  --studio-border: #e8e8e5;
+  --studio-text: #242424;
+  --studio-muted: #858585;
+  --studio-accent: #7565c9;
+  --studio-accent-hover: #6252b5;
+  --studio-shadow: 0 8px 30px rgba(0,0,0,.07);
+  --studio-radius: 12px;
+}
+
+.gallery-app {
+  font-family: Inter, system-ui, sans-serif;
+  color: var(--studio-text);
+}
+
+/* Toolbar */
+
+.gallery-toolbar {
+  background: rgba(255,255,255,.96) !important;
+  color: var(--studio-text) !important;
+  border: 1px solid var(--studio-border) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,.035) !important;
+  backdrop-filter: none !important;
+}
+
+.brand-name {
+  color: var(--studio-text) !important;
+  font-weight: 700;
+  letter-spacing: -.4px;
+}
+
+.brand-icon,
+.entry-logo,
+.modal-icon {
+  background: #f0edfa !important;
+  color: var(--studio-accent) !important;
+}
+
+.room-controls,
+.visitor-count {
+  color: var(--studio-muted) !important;
+}
+
+.icon-button {
+  background: #fff !important;
+  border: 1px solid var(--studio-border) !important;
+  color: #555 !important;
+  border-radius: 9px !important;
+  transition: .2s ease;
+}
+
+.icon-button:hover {
+  background: #f5f3fb !important;
+  color: var(--studio-accent) !important;
+  border-color: #d8d0f2 !important;
+}
+
+.add-painting,
+.enter-button,
+.save-button {
+  background: var(--studio-accent) !important;
+  color: #fff !important;
+  border: 1px solid var(--studio-accent) !important;
+  border-radius: 9px !important;
+  font-weight: 600;
+  transition: .2s ease;
+}
+
+.add-painting:hover,
+.enter-button:hover,
+.save-button:hover {
+  background: var(--studio-accent-hover) !important;
+  transform: translateY(-1px);
+}
+
+/* Main panels */
+
+.box,
+.entry-card,
+.painting-card {
+  background: var(--studio-surface) !important;
+  color: var(--studio-text) !important;
+  border: 1px solid var(--studio-border) !important;
+  border-radius: 14px !important;
+  box-shadow: var(--studio-shadow) !important;
+}
+
+/* Entry screen */
+
+#start {
+  background: var(--studio-bg) !important;
+}
+
+.entry-heading h1,
+.modal-heading h1 {
+  color: var(--studio-text) !important;
+  font-size: 25px;
+  font-weight: 700;
+  letter-spacing: -.7px;
+}
+
+.entry-heading p,
+.modal-heading p,
+.entry-footer {
+  color: var(--studio-muted) !important;
+}
+
+.field-group label,
+.customization-group .lab {
+  color: #444 !important;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.field-group input,
+#nm,
+#au-user,
+#au-email,
+#au-disp,
+#au-pass,
+#rg-user,
+#rg-email,
+#rg-pass,
+#ttl,
+#art {
+  background: #fff !important;
+  color: var(--studio-text) !important;
+  border: 1px solid var(--studio-border) !important;
+  border-radius: 9px !important;
+  padding: 11px 13px !important;
+  outline: none;
+  transition: .2s ease;
+}
+
+input:focus,
+textarea:focus {
+  border-color: var(--studio-accent) !important;
+  box-shadow: 0 0 0 3px rgba(117,101,201,.10) !important;
+}
+
+/* Avatar options */
+
+#gen button {
+  border: 1px solid var(--studio-border) !important;
+  border-radius: 8px !important;
+  background: white !important;
+  color: #555 !important;
+  padding: 9px 13px;
+}
+
+#gen button.active,
+#gen button.selected {
+  background: #f0edfa !important;
+  border-color: var(--studio-accent) !important;
+  color: var(--studio-accent) !important;
+}
+
+/* Upload modal */
+
+#panel {
+  background: rgba(25,25,30,.35) !important;
+  backdrop-filter: blur(3px);
+}
+
+.upload-area {
+  background: #fafafa !important;
+  border: 1px dashed #d8d8d5 !important;
+  border-radius: 10px !important;
+  color: var(--studio-text) !important;
+  transition: .2s ease;
+}
+
+.upload-area:hover {
+  border-color: var(--studio-accent) !important;
+  background: #f8f6fd !important;
+}
+
+.upload-area span {
+  color: var(--studio-muted) !important;
+}
+
+.cancel-button {
+  background: #fff !important;
+  color: #555 !important;
+  border: 1px solid var(--studio-border) !important;
+  border-radius: 9px !important;
+}
+
+/* Chat */
+
+.chat-panel {
+  background: #fff !important;
+  color: var(--studio-text) !important;
+  border: 1px solid var(--studio-border) !important;
+  border-radius: 12px !important;
+  box-shadow: var(--studio-shadow) !important;
+}
+
+.chat-heading {
+  color: var(--studio-text) !important;
+  border-bottom: 1px solid var(--studio-border);
+}
+
+#cin {
+  background: #fafafa !important;
+  color: var(--studio-text) !important;
+  border: 1px solid var(--studio-border) !important;
+  border-radius: 8px !important;
+}
+
+/* Visitors */
+
+#visitor-panel {
+  background: #fff !important;
+  color: var(--studio-text) !important;
+  border: 1px solid var(--studio-border) !important;
+  border-radius: 12px !important;
+  box-shadow: var(--studio-shadow) !important;
+  backdrop-filter: none !important;
+}
+
+/* Profile */
+
+#profile > div {
+  background: #fff !important;
+  color: var(--studio-text) !important;
+  border: 1px solid var(--studio-border) !important;
+  border-radius: 14px !important;
+  box-shadow: var(--studio-shadow) !important;
+}
+
+#pf-user,
+#pf-msg {
+  color: var(--studio-muted) !important;
+}
+
+#pf-close {
+  color: var(--studio-muted) !important;
+}
+
+/* Authentication */
+
+#auth {
+  background: rgba(20,20,25,.45) !important;
+  backdrop-filter: blur(3px);
+}
+
+#auth > div {
+  background: #fff !important;
+  color: var(--studio-text) !important;
+  border: 1px solid var(--studio-border);
+  border-radius: 14px !important;
+  box-shadow: var(--studio-shadow);
+}
+
+#auth button:not(#au-submit) {
+  color: var(--studio-accent) !important;
+}
+
+/* Preview */
+
+#pv {
+  background: #fff !important;
+  color: var(--studio-text) !important;
+  border-radius: 12px !important;
+  box-shadow: var(--studio-shadow);
+}
+
+#pvx {
+  color: var(--studio-text) !important;
+  background: #fff !important;
+  border: 1px solid var(--studio-border) !important;
+  border-radius: 8px !important;
+}
+
+/* Help */
+
+#help {
+  background: rgba(255,255,255,.94) !important;
+  color: var(--studio-text) !important;
+  border: 1px solid var(--studio-border) !important;
+  border-radius: 10px !important;
+  box-shadow: var(--studio-shadow);
+}
+
+/* Mobile */
+
+@media (max-width: 768px) {
+  .gallery-toolbar {
+    border-radius: 10px !important;
+  }
+
+  .brand-name {
+    font-size: 14px;
+  }
+
+  .add-painting {
+    min-height: 40px;
+    padding: 0 10px;
+    font-size: 12px;
+  }
+
+  .icon-button {
+    min-width: 38px;
+    min-height: 38px;
+  }
+
+  .entry-card,
+  .painting-card {
+    width: min(100% - 24px, 440px);
+    padding: 20px !important;
+  }
+
+  .entry-heading h1 {
+    font-size: 22px;
+  }
+
+  #visitor-panel {
+    right: 12px !important;
+    width: calc(100vw - 24px) !important;
+  }
+
+  #profile {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+}
+
+button {
+  font-family: inherit;
+}
+
+button:focus-visible {
+  outline: 3px solid rgba(117,101,201,.25);
+  outline-offset: 2px;
+}
+
+
+/* Fix painting upload modal appearing behind other sections */
+
+#panel {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 9999 !important;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  overflow-y: auto;
+  background: rgba(20, 20, 25, .45) !important;
+  backdrop-filter: blur(3px);
+}
+
+#panel[style*="display: flex"],
+#panel[style*="display:flex"] {
+  display: flex !important;
+}
+
+#panel .painting-card {
+  position: relative !important;
+  z-index: 10000 !important;
+  width: min(460px, 100%) !important;
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto !important;
+  margin: auto;
+  flex-shrink: 0;
+}
+
+@media (max-width: 600px) {
+  #panel {
+    align-items: flex-end;
+    padding: 12px;
+  }
+
+  #panel .painting-card {
+    max-height: calc(100dvh - 24px);
+    border-radius: 14px !important;
+  }
+}
+
+
+/* =====================================
+   PROFILE MODAL — TEXT VISIBILITY FIX
+===================================== */
+
+#profile {
+  color: #242424 !important;
+}
+
+#profile > div {
+  background: #ffffff !important;
+  color: #242424 !important;
+}
+
+/* Profile name and username */
+#profile strong,
+#pf-name {
+  color: #242424 !important;
+}
+
+#pf-user {
+  color: #777777 !important;
+}
+
+/* Profile labels and messages */
+#profile label {
+  color: #444444 !important;
+}
+
+#pf-msg {
+  color: #7565c9 !important;
+}
+
+/* Close button */
+#pf-close {
+  color: #555555 !important;
+}
+
+/* Profile action buttons */
+#pf-looks,
+#pf-out {
+  color: #333333 !important;
+  background: #ffffff !important;
+  border: 1px solid #e8e8e5 !important;
+}
+
+#pf-looks:hover {
+  background: #f5f3fb !important;
+  border-color: #d8d0f2 !important;
+}
+
+#pf-out {
+  color: #dc5555 !important;
+  background: #fffafa !important;
+}
+
+#pf-out:hover {
+  background: #fff0f0 !important;
+}
+
+/* Profile picture fallback */
+#pf-ini {
+  color: #ffffff !important;
+}
+
+/* Ensure nested profile content is readable */
+#profile > div * {
+  opacity: 1;
+}
+

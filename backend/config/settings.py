@@ -9,7 +9,14 @@ UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-insecure-change-me')
 DEBUG = os.environ.get('DEBUG', '1') == '1'
-ALLOWED_HOSTS = [h.strip() for h in os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',') if h.strip()]
+ALLOWED_HOSTS = [
+    h.strip()
+    for h in os.environ.get(
+        'ALLOWED_HOSTS',
+        'localhost,127.0.0.1,192.168.100.112'
+    ).split(',')
+    if h.strip()
+]
 
 CSRF_TRUSTED_ORIGINS = [
     o.strip().rstrip('/')
