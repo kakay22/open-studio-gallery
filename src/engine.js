@@ -3377,7 +3377,7 @@ export default function startGallery() {
     const mkb = (t, css, fn) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = t; b.style.cssText = 'border:0;border-radius:12px;padding:7px 11px;font:600 12px system-ui,sans-serif;cursor:pointer;color:#fff;background:#3a3740;' + (css || ''); if (fn) b.onclick = fn; return b };
     const mke = (tag, css, t) => { const e = document.createElement(tag); if (css) e.style.cssText = css; if (t != null) e.textContent = t; return e };
     const hcss = document.createElement('style'); hcss.textContent = 'body.menu #hubB,body.photo #hubB{display:none!important}'; document.head.append(hcss);
-    const hubB = mkb('☰ Hub', 'position:fixed;left:10px;top:56px;z-index:21;display:none;background:rgba(20,20,24,.85);padding:9px 13px;border-radius:18px;font-size:13px', () => openHub()); hubB.id = 'hubB';
+    const hubB = mkb('☰ Hub', 'position:fixed;left:10px;top:116px;z-index:21;display:none;background:rgba(20,20,24,.85);padding:9px 13px;border-radius:18px;font-size:13px', () => openHub()); hubB.id = 'hubB';
     const hubP = mke('div', 'position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:41;display:none;width:min(430px,94vw);max-height:82vh;overflow:auto;padding:14px;border-radius:16px;background:rgba(20,20,24,.97);color:#fff;font:14px/1.4 system-ui,sans-serif');
     let hubTab = 'avatar', hubOn = false, dmWith = null; const dms = {}, unread = {};
     function hubClose() { hubOn = false; hubP.style.display = 'none'; if (!touch && started && !stOpen) cvs.requestPointerLock?.() }
